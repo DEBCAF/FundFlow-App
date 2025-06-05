@@ -4,9 +4,10 @@ import os
 app = Flask(__name__, 
             template_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates'))
 
+@app.route("/home")
 @app.route("/")
 def home():
-    return render_template("home.html", title="Home")
+    return render_template("home.html", title="FundFlow")
 
 @app.route("/about")
 def about():
