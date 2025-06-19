@@ -45,3 +45,4 @@ class Goal():
         
     def set_amount(self, amount):
         self.amount = amount
+        
