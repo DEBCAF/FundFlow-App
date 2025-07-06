@@ -1,7 +1,12 @@
-from __main__ import db
+from home import db, login_manager
 from datetime import datetime
+from flask_login import UserMixin
 
-class User(db.Model):
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(20), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -17,5 +22,8 @@ class Goal(db.Model):
     title = db.Column(db.String(100), nullable=False)
     date_time = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     description = db.Column(db.Text, nullable=False)
-    amount = db.Column(db.Float, nullable=False)
+    target_amount = db.Column(db.Float, nullable=False)
+    deadline = db.Column(db.DateTime, nullable=True)
+    category = db.Column(db.String(50), nullable=True)
+    status = db.Column(db.String(20), nullable=False, default='active')
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
