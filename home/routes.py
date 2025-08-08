@@ -1,7 +1,7 @@
 from flask import render_template, url_for, flash, redirect, request, abort
 from home import app, db, bcrypt, mail
 from home.db_models import User, Goal
-from home.forms import RegistrationForm, LoginForm, UpdateAccountForm, GoalForm, RequestResetForm, ResetPasswordForm
+from home.forms import RegistrationForm, LoginForm, UpdateAccountForm, GoalForm, RequestResetForm, ResetPasswordForm, ChangePasswordForm
 from PIL import Image 
 import secrets
 import os
@@ -21,8 +21,8 @@ def about():
 
 @app.route("/register", methods=['GET', 'POST'])
 def register():
-    '''if current_user.is_authenticated:
-        return redirect(url_for('home'))'''
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
     form = RegistrationForm()
     if form.validate_on_submit():
         hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
@@ -54,7 +54,6 @@ def logout():
     logout_user()
     return redirect(url_for('home'))
 
-
 def save_picture(form_picture):
     random_hex = secrets.token_hex(8)
     _,f_ext = os.path.splitext(form_picture.filename)
@@ -84,6 +83,21 @@ def account():
         form.email.data = current_user.email 
     image_file = url_for('static', filename='profile_pics/'+current_user.image_file)
     return render_template("account.html", title="Account", image_file=image_file, form=form)
+
+@app.route("/change_password", methods=['GET', 'POST'])
+@login_required
+def change_password():
+    form = ChangePasswordForm()
+    if form.validate_on_submit():
+        if not bcrypt.check_password_hash(current_user.password, form.current_password.data):
+            flash('Current password is incorrect', 'danger')
+            return redirect(url_for('change_password'))
+        new_hashed = bcrypt.generate_password_hash(form.new_password.data).decode('utf-8')
+        current_user.password = new_hashed
+        db.session.commit()
+        flash('Your password has been changed', 'success')
+        return redirect(url_for('account'))
+    return render_template('change_password.html', title='Change Password', form=form)
 
 @app.route("/goal/new", methods=['GET', 'POST'])
 @login_required
@@ -158,7 +172,7 @@ def user_goals(username):
 def send_reset_email(user):
     token = user.get_reset_token()
     msg = Message('Password Reset Request',
-                  sender='goldendawndebcaf@gmail.com',
+                  sender=os.environ.get('EMAIL_USER'),
                   recipients=[user.email])
     msg.body = f'''To reset your password, visit the following link:
     {url_for('reset_token', token=token, _external=True)}
