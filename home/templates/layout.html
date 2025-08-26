@@ -1,4 +1,4 @@
-<html>
+<html data-theme="{{ session.get('theme', 'light') }}">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -22,12 +22,16 @@
                 <div class="navbar-nav mr-auto">
                     <a class="nav-item nav-link" href="/">Home</a>
                     <a class="nav-item nav-link" href="/about">About</a>
+                    {% if current_user.is_authenticated %}
+                        <a class="nav-item nav-link" href="/goals">Goals</a>
+                        <a class="nav-item nav-link" href="/groups">Groups</a>
+                    {% endif %}
                 </div>
                 <div class="navbar-nav">
                     {% if current_user.is_authenticated %}
+                        <a class="nav-item nav-link" href="/dashboard">Dashboard</a>
                         <a class="nav-item nav-link" href="#" onclick="confirmLogout()">Logout</a>
                         <a class="nav-item nav-link" href="/account">Account</a>
-                        <a class="nav-item nav-link" href="/goal/new">New Goal</a>
                     {% else %}
                         <a class="nav-item nav-link" href="/login">Login</a>
                         <a class="nav-item nav-link" href="/register">Register</a>
@@ -54,15 +58,31 @@
             </div>
             <div class="col-md-4">
                 <div class="content-section">
-                <h3>Sidebar</h3>
-                <p class='text-muted'>Navigate to other parts of the website
-                    <ul class="list-group">
-                    <li class="list-group-item list-group-item-light">Wishlist/Goals</li>
-                    <li class="list-group-item list-group-item-light">Announcements</li>
-                    <li class="list-group-item list-group-item-light">Calendars</li>
-                    <li class="list-group-item list-group-item-light">etc</li>
-                    </ul>
-                </p>
+                <h3>Quick Actions</h3>
+                {% if current_user.is_authenticated %}
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('goals') }}" class="btn btn-primary">View My Goals</a>
+                        <a href="{{ url_for('new_goal') }}" class="btn btn-success">Create New Goal</a>
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-info">Go to Dashboard</a>
+                        <hr>
+                        <a href="{{ url_for('groups') }}" class="btn btn-outline-primary">View Groups</a>
+                        <a href="{{ url_for('create_group') }}" class="btn btn-outline-success">Create Group</a>
+                        <a href="{{ url_for('join_group') }}" class="btn btn-outline-info">Join Group</a>
+                        <hr>
+                        <a href="{{ url_for('user_preferences') }}" class="btn btn-outline-secondary">User Preferences</a>
+                    </div>
+                    <hr>
+                    <div class="mt-3">
+                        <h6>Current Status</h6>
+                        <p class="text-success mb-0">Savings: ${{ '%.2f'|format(current_user.savings or 0) }}</p>
+                    </div>
+                {% else %}
+                    <p class='text-muted'>Get started with FundFlow</p>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('register') }}" class="btn btn-primary">Sign Up</a>
+                        <a href="{{ url_for('login') }}" class="btn btn-outline-primary">Login</a>
+                    </div>
+                {% endif %}
                 </div>
             </div>
             </div>

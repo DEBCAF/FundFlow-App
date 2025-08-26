@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, BooleanField, TextAreaField, FloatField, DateField, SelectField
-from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError, Optional
+from wtforms import StringField, PasswordField, SubmitField, BooleanField, TextAreaField, FloatField, DateField, SelectField, IntegerField
+from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError, Optional, NumberRange
 from home.db_models import User
 from flask_wtf.file import FileField, FileAllowed
 from flask_login import current_user
@@ -54,9 +54,23 @@ class UpdateAccountForm(FlaskForm):
             if user:
                 raise ValidationError('Email has been taken, choose another.')
     
+class UpdateSavingsForm(FlaskForm):
+    savings = FloatField('Savings Balance ($)', validators=[DataRequired(), NumberRange(min=0, message='Savings cannot be negative')])
+    submit = SubmitField('Update Savings')
+
+class AdjustSavingsForm(FlaskForm):
+    amount = FloatField('Amount ($)', validators=[DataRequired()])
+    operation = SelectField('Operation', choices=[
+        ('add', 'Add to savings'),
+        ('subtract', 'Subtract from savings')
+    ], validators=[DataRequired()])
+    description = StringField('Description (Optional)', validators=[Optional()])
+    submit = SubmitField('Adjust Savings')
+
 class GoalForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired()])
     description = TextAreaField('Description', validators=[DataRequired()])
+    url = StringField('URL (Optional)', validators=[Optional()])
     target_amount = FloatField('Target Amount ($)', validators=[DataRequired()])
     deadline = DateField('Deadline (Optional)', validators=[Optional()])
     category = SelectField('Category', choices=[
@@ -69,12 +83,40 @@ class GoalForm(FlaskForm):
         ('vehicle', 'Vehicle'),
         ('other', 'Other')
     ], validators=[Optional()])
-    status = SelectField('Status', choices=[
-        ('active', 'Active'),
-        ('paused', 'Paused'),
-        ('completed', 'Completed')
-    ], validators=[DataRequired()])
     submit = SubmitField('Create Goal')
+
+    def validate_target_amount(self, target_amount):
+        if target_amount.data <= 0:
+            raise ValidationError('Target amount must be greater than 0.')
+        if target_amount.data > 1000000:  # Optional: add upper limit
+            raise ValidationError('Target amount cannot exceed $1,000,000.')
+
+class UpdateGoalForm(FlaskForm):
+    title = StringField('Title', validators=[DataRequired()])
+    description = TextAreaField('Description', validators=[DataRequired()])
+    url = StringField('URL (Optional)', validators=[Optional()])
+    target_amount = FloatField('Target Amount ($)', validators=[DataRequired()])
+    deadline = DateField('Deadline (Optional)', validators=[Optional()])
+    category = SelectField('Category', choices=[
+        ('savings', 'Savings'),
+        ('investment', 'Investment'),
+        ('emergency', 'Emergency Fund'),
+        ('vacation', 'Vacation'),
+        ('education', 'Education'),
+        ('home', 'Home'),
+        ('vehicle', 'Vehicle'),
+        ('other', 'Other')
+    ], validators=[Optional()])
+    submit = SubmitField('Update Goal')
+
+# Changing savings balance manually (may add function to just press add or subtract)
+class SavingsForm(FlaskForm):
+    amount = FloatField('Amount ($)', validators=[DataRequired()])
+    submit = SubmitField('Add Savings')
+
+    def validate_amount(self, amount):
+        if amount.data <= 0:
+            raise ValidationError('Amount must be greater than 0.')
 
 class RequestResetForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
@@ -95,3 +137,73 @@ class ChangePasswordForm(FlaskForm):
     new_password = PasswordField('New Password', validators=[DataRequired()])
     confirm_new_password = PasswordField('Confirm New Password', validators=[DataRequired(), EqualTo('new_password')])
     submit = SubmitField('Change Password')
+
+class CreateGroupForm(FlaskForm):
+    name = StringField('Group Name', validators=[DataRequired(), Length(min=2, max=100)])
+    description = TextAreaField('Description', validators=[Optional()])
+    currency = SelectField('Currency', choices=[
+        ('USD', 'USD ($)'),
+        ('EUR', 'EUR (€)'),
+        ('GBP', 'GBP (£)'),
+        ('CAD', 'CAD (C$)'),
+        ('AUD', 'AUD (A$)')
+    ], validators=[DataRequired()])
+    is_open = BooleanField('Open Group (Anyone can join with Group ID)')
+    submit = SubmitField('Create Group')
+
+class GroupGoalForm(FlaskForm):
+    title = StringField('Goal Title', validators=[DataRequired(), Length(min=2, max=100)])
+    description = TextAreaField('Description', validators=[DataRequired()])
+    target_amount = FloatField('Target Amount', validators=[
+        DataRequired(), 
+        NumberRange(min=0.01, message='Target amount must be greater than 0')
+    ])
+    deadline = DateField('Deadline (Optional)', validators=[Optional()])
+    category = SelectField('Category', choices=[
+        ('savings', 'Savings'),
+        ('investment', 'Investment'),
+        ('emergency', 'Emergency Fund'),
+        ('vacation', 'Vacation'),
+        ('education', 'Education'),
+        ('home', 'Home'),
+        ('vehicle', 'Vehicle'),
+        ('other', 'Other')
+    ], validators=[Optional()])
+    submit = SubmitField('Propose Goal')
+
+class GroupTransactionForm(FlaskForm):
+    amount = FloatField('Amount', validators=[
+        DataRequired(), 
+        NumberRange(min=0.01, message='Amount must be greater than 0')
+    ])
+    description = TextAreaField('Description', validators=[DataRequired()])
+    submit = SubmitField('Submit Transaction')
+
+class JoinGroupForm(FlaskForm):
+    group_id = IntegerField('Group ID', validators=[DataRequired()])
+    message = TextAreaField('Message (Optional)', validators=[Optional()])
+    submit = SubmitField('Join Group')
+
+class UserPreferencesForm(FlaskForm):
+    theme = SelectField('Theme', choices=[
+        ('light', 'Light Mode'),
+        ('dark', 'Dark Mode')
+    ], validators=[DataRequired()])
+    notifications = BooleanField('Enable Notifications')
+    submit = SubmitField('Save Preferences')
+
+class GroupPreferencesForm(FlaskForm):
+    default_graph_type = SelectField('Default Graph Type', choices=[
+        ('line', 'Line Chart'),
+        ('bar', 'Bar Chart'),
+        ('pie', 'Pie Chart')
+    ], validators=[DataRequired()])
+    currency = SelectField('Currency', choices=[
+        ('USD', 'USD ($)'),
+        ('EUR', 'EUR (€)'),
+        ('GBP', 'GBP (£)'),
+        ('CAD', 'CAD (C$)'),
+        ('AUD', 'AUD (A$)')
+    ], validators=[DataRequired()])
+    is_open = BooleanField('Open Group (Anyone can request to join)')
+    submit = SubmitField('Save Preferences')

@@ -1,19 +1,23 @@
-from flask import render_template, url_for, flash, redirect, request, abort
+from flask import render_template, url_for, flash, redirect, request, abort, session
 from home import app, db, bcrypt, mail
-from home.db_models import User, Goal
-from home.forms import RegistrationForm, LoginForm, UpdateAccountForm, GoalForm, RequestResetForm, ResetPasswordForm, ChangePasswordForm
+from home.db_models import User, Goal, Group, GroupMember, GroupGoal, GroupTransaction, GroupJoinRequest
+from home.forms import RegistrationForm, LoginForm, UpdateAccountForm, GoalForm, RequestResetForm, ResetPasswordForm, ChangePasswordForm, UpdateSavingsForm, CreateGroupForm, JoinGroupForm, GroupGoalForm, GroupTransactionForm, AdjustSavingsForm, UserPreferencesForm, GroupPreferencesForm
 from PIL import Image 
 import secrets
 import os
 from flask_login import login_user, current_user, logout_user, login_required
 from flask_mail import Message
+from datetime import datetime
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, SubmitField, BooleanField, SelectField, IntegerField, TextAreaField, FloatField
+from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError, NumberRange, Optional
+from flask_login import current_user
+from home.db_models import UserPreference, GroupPreference
 
 @app.route("/home")
 @app.route("/")
 def home():
-    page = request.args.get('page', 1, type=int)
-    goals = Goal.query.order_by(Goal.date_time.desc()).paginate(page=page, per_page=2)
-    return render_template("home.html", title="FundFlow", goals=goals)
+    return render_template("home.html", title="FundFlow")
 
 @app.route("/about")
 def about():
@@ -35,8 +39,8 @@ def register():
 
 @app.route("/login", methods=['GET', 'POST'])
 def login():
-    '''if current_user.is_authenticated:
-        return redirect(url_for('home'))'''
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
@@ -69,6 +73,7 @@ def save_picture(form_picture):
 @login_required
 def account():
     form = UpdateAccountForm()
+    
     if form.validate_on_submit():
         if form.picture.data:
             picture_file = save_picture(form.picture.data)
@@ -78,9 +83,11 @@ def account():
         db.session.commit()
         flash('Your account has been updated', 'success')
         return redirect(url_for('account'))
+    
     elif request.method == 'GET':
         form.username.data = current_user.username
-        form.email.data = current_user.email 
+        form.email.data = current_user.email
+    
     image_file = url_for('static', filename='profile_pics/'+current_user.image_file)
     return render_template("account.html", title="Account", image_file=image_file, form=form)
 
@@ -99,24 +106,110 @@ def change_password():
         return redirect(url_for('account'))
     return render_template('change_password.html', title='Change Password', form=form)
 
+@app.route("/update_savings", methods=['POST'])
+@login_required
+def update_savings():
+    form = UpdateSavingsForm()
+    if form.validate_on_submit():
+        new_savings = form.savings.data
+    
+        if new_savings < 0:
+            flash('Savings cannot be negative!', 'danger')
+            return redirect(url_for('dashboard'))
+        
+        try:
+            current_user.savings = new_savings
+            db.session.commit()
+            flash('Your savings balance has been updated!', 'success')
+        except ValueError as e:
+            db.session.rollback()
+            flash(str(e), 'danger')
+        except Exception as e:
+            db.session.rollback()
+            flash('An error occurred while updating savings.', 'danger')
+        
+        return redirect(url_for('dashboard'))
+    else:
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f'{getattr(form, field).label.text}: {error}', 'danger')
+        return redirect(url_for('dashboard'))
+
+@app.route("/adjust_savings", methods=['POST'])
+@login_required
+def adjust_savings():
+    form = AdjustSavingsForm()
+    if form.validate_on_submit():
+        amount = form.amount.data
+        operation = form.operation.data
+        
+        if operation == 'subtract' and current_user.savings < amount:
+            flash('Insufficient funds to subtract this amount!', 'danger')
+            return redirect(url_for('dashboard'))
+        
+        try:
+            if operation == 'add':
+                current_user.savings += amount
+                flash(f'Added ${amount:.2f} to your savings!', 'success')
+            else:  # subtract
+                current_user.savings -= amount
+                flash(f'Subtracted ${amount:.2f} from your savings!', 'success')
+            
+            db.session.commit()
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error adjusting savings: {str(e)}', 'danger')
+            print(f"Error in savings adjustment: {e}")
+        
+        return redirect(url_for('dashboard'))
+    else:
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f'{getattr(form, field).label.text}: {error}', 'danger')
+        return redirect(url_for('dashboard'))
+
+@app.route("/goals")
+@login_required
+def goals():
+    page = request.args.get('page', 1, type=int)
+    status_filter = request.args.get('status', 'incomplete')  
+    
+    if status_filter == 'completed':
+        goals = Goal.query.filter_by(user_id=current_user.id, status='completed')\
+            .order_by(Goal.date_time.desc()).paginate(page=page, per_page=5)
+        active_tab = 'completed'
+    else:
+        goals = Goal.query.filter_by(user_id=current_user.id, status='active')\
+            .order_by(Goal.date_time.desc()).paginate(page=page, per_page=5)
+        active_tab = 'incomplete'
+    
+    return render_template("goals.html", title="My Goals", goals=goals, active_tab=active_tab)
+
 @app.route("/goal/new", methods=['GET', 'POST'])
 @login_required
 def new_goal():
+    if current_user.savings is None:
+        flash('Please set your savings balance first', 'danger')
+        return redirect(url_for('account'))
+
     form = GoalForm()
     if form.validate_on_submit():
+        if form.target_amount.data <= 0:
+            flash('Target amount must be greater than 0!', 'danger')
+            return render_template("create_goal.html", title="New Goal", form=form, legend='New Goal')
         goal = Goal(
             title=form.title.data, 
             description=form.description.data, 
             target_amount=form.target_amount.data,
             deadline=form.deadline.data,
             category=form.category.data,
-            status=form.status.data,
             user_id=current_user.id
         )
         db.session.add(goal)
         db.session.commit()
         flash('Your goal has been created!', 'success')
-        return redirect(url_for('home'))
+        return redirect(url_for('goals'))
     return render_template("create_goal.html", title="New Goal", form=form, legend='New Goal')
 
 @app.route("/goal/<int:goal_id>")
@@ -133,12 +226,14 @@ def update_goal(goal_id):
         abort(403)
     form = GoalForm()
     if form.validate_on_submit():
+        if form.target_amount.data <= 0:
+            flash('Target amount must be greater than 0!', 'danger')
+            return render_template("create_goal.html", title="New Goal", form=form, legend='New Goal')
         goal.title = form.title.data
         goal.description = form.description.data
         goal.target_amount = form.target_amount.data
         goal.deadline = form.deadline.data
         goal.category = form.category.data
-        goal.status = form.status.data
         db.session.commit()
         flash('Your goal has been updated!', 'success')
         return redirect(url_for('goal', goal_id=goal_id))
@@ -148,8 +243,22 @@ def update_goal(goal_id):
         form.target_amount.data = goal.target_amount
         form.deadline.data = goal.deadline
         form.category.data = goal.category
-        form.status.data = goal.status
     return render_template("create_goal.html", title="Update Goal", form=form, legend='Update Goal')
+
+@app.route("/goal/<int:goal_id>/complete", methods=['POST'])
+@login_required
+def complete_goal(goal_id):
+    goal = Goal.query.get_or_404(goal_id)
+    if goal.user_id != current_user.id:
+        abort(403)
+    if current_user.savings < goal.target_amount:
+        flash('You do not have enough savings to complete this goal', 'danger')
+        return redirect(url_for('goal', goal_id=goal_id))
+    current_user.savings -= goal.target_amount
+    goal.status = 'completed'
+    db.session.commit()
+    flash('Your goal has been completed!', 'success')
+    return redirect(url_for('home'))
 
 @app.route("/goal/<int:goal_id>/delete", methods=['POST'])
 @login_required
@@ -159,15 +268,28 @@ def delete_goal(goal_id):
         abort(403)
     db.session.delete(goal)
     db.session.commit()
-    flash('Your post has been deleted!', 'success')
+    flash('Your goal has been deleted!', 'success')
     return redirect(url_for('home'))
 
 @app.route("/user/<string:username>")
+@login_required
 def user_goals(username):
     page = request.args.get('page', 1, type=int)
     user = User.query.filter_by(username=username).first_or_404()
     goals = Goal.query.filter_by(user_id=user.id).order_by(Goal.date_time.desc()).paginate(page=page, per_page=2)
     return render_template("user_goals.html", goals=goals, user=user)
+
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    savings_form = UpdateSavingsForm()
+    adjust_form = AdjustSavingsForm()
+    
+    if request.method == 'GET':
+        savings_form.savings.data = current_user.savings or 0.0
+    
+    return render_template("dashboard.html", title="Dashboard", 
+                         savings_form=savings_form, adjust_form=adjust_form)
 
 def send_reset_email(user):
     token = user.get_reset_token()
@@ -208,3 +330,721 @@ def reset_token(token):
         flash('Your password has been updated! You are now able to log in', 'success')
         return redirect(url_for('login'))
     return render_template('reset_token.html', title='Reset Password', form=form)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@app.route("/groups")
+@login_required
+def groups():
+    page = request.args.get('page', 1, type=int)
+    per_page = 6  # Show 6 groups per page (2 rows of 3)
+    
+    # Get paginated groups where user is a member
+    user_groups = Group.query.join(GroupMember).filter(
+        GroupMember.user_id == current_user.id,
+        GroupMember.is_active == True
+    ).paginate(page=page, per_page=per_page, error_out=False)
+    
+    # Get groups where user is admin (for badges)
+    admin_groups = Group.query.join(GroupMember).filter(
+        GroupMember.user_id == current_user.id,
+        GroupMember.role == 'admin',
+        GroupMember.is_active == True
+    ).all()
+    
+    return render_template("groups.html", title="My Groups", 
+                         user_groups=user_groups, admin_groups=admin_groups)
+
+@app.route("/groups/create", methods=['GET', 'POST'])
+@login_required
+def create_group():
+    form = CreateGroupForm()
+    if form.validate_on_submit():
+        group = Group(
+            name=form.name.data,
+            description=form.description.data,
+            currency=form.currency.data,
+            is_open=form.is_open.data
+        )
+        db.session.add(group)
+        db.session.flush()  # Get the group ID
+        
+        # Add creator as admin
+        admin_member = GroupMember(
+            group_id=group.id,
+            user_id=current_user.id,
+            role='admin'
+        )
+        db.session.add(admin_member)
+        db.session.commit()
+        
+        flash('Group created successfully!', 'success')
+        return redirect(url_for('group_detail', group_id=group.id))
+    
+    return render_template("create_group.html", title="Create Group", form=form)
+
+@app.route("/groups/join", methods=['GET', 'POST'])
+@login_required
+def join_group():
+    form = JoinGroupForm()
+    if form.validate_on_submit():
+        # Find group by ID instead of name
+        group = Group.query.filter_by(id=form.group_id.data, is_active=True).first()
+        
+        if not group:
+            flash('Group not found or inactive.', 'danger')
+            return redirect(url_for('join_group'))
+        
+        # Check if group is closed - if so, reject immediately
+        if not group.is_open:
+            flash('This group is closed and not accepting any new members or rejoins.', 'danger')
+            return redirect(url_for('join_group'))
+        
+        # Check if user is already an active member
+        existing_member = GroupMember.query.filter_by(
+            group_id=group.id, 
+            user_id=current_user.id,
+            is_active=True
+        ).first()
+        
+        if existing_member:
+            flash('You are already an active member of this group.', 'info')
+            return redirect(url_for('group_detail', group_id=group.id))
+        
+        # Check if there's already a pending request
+        existing_request = GroupJoinRequest.query.filter_by(
+            group_id=group.id,
+            user_id=current_user.id,
+            status='pending'
+        ).first()
+        
+        if existing_request:
+            flash('You already have a pending join request for this group.', 'info')
+            return redirect(url_for('join_group'))
+        
+        # For both new joins and rejoins, create join request
+        # Check if user was previously a member
+        was_previous_member = GroupMember.query.filter_by(
+            group_id=group.id,
+            user_id=current_user.id,
+            is_active=False
+        ).first()
+        
+        join_request = GroupJoinRequest(
+            group_id=group.id,
+            user_id=current_user.id,
+            message=form.message.data if form.message.data else None
+        )
+        db.session.add(join_request)
+        db.session.commit()
+        
+        if was_previous_member:
+            flash('Rejoin request sent! Waiting for admin approval.', 'success')
+        else:
+            flash('Join request sent! Waiting for admin approval.', 'success')
+        
+        return redirect(url_for('groups'))
+    
+    return render_template("join_group.html", title="Join Group", form=form)
+
+@app.route("/groups/<int:group_id>")
+@login_required
+def group_detail(group_id):
+    group = Group.query.get_or_404(group_id)
+    member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not member or not member.is_active:
+        abort(403)
+    
+    # Get group goals
+    goals = GroupGoal.query.filter_by(group_id=group_id).order_by(GroupGoal.created_at.desc()).all()
+    
+    # Get recent transactions
+    transactions = GroupTransaction.query.filter_by(group_id=group_id).order_by(GroupTransaction.occurred_at.desc()).limit(10).all()
+    
+    # Get pending approvals (for admins)
+    pending_goals = []
+    pending_transactions = []
+    if member.role == 'admin':
+        pending_goals = GroupGoal.query.filter_by(
+            group_id=group_id, 
+            status='proposed'
+        ).all()
+        pending_transactions = GroupTransaction.query.filter_by(
+            group_id=group_id, 
+            status='pending'
+        ).all()
+    
+    return render_template("group_detail.html", title=group.name, 
+                         group=group, member=member, goals=goals, 
+                         transactions=transactions, pending_goals=pending_goals,
+                         pending_transactions=pending_transactions)
+
+@app.route("/groups/<int:group_id>/leave", methods=['POST'])
+@login_required
+def leave_group(group_id):
+    group = Group.query.get_or_404(group_id)
+    member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not member:
+        flash('You are not a member of this group.', 'danger')
+        return redirect(url_for('groups'))
+    
+    if member.role == 'admin' and len(group.admin_members) == 1:
+        flash('Cannot leave group as the only admin. Transfer admin role first.', 'danger')
+        return redirect(url_for('group_detail', group_id=group_id))
+    
+    member.is_active = False
+    db.session.commit()
+    
+    flash('Successfully left the group.', 'success')
+    return redirect(url_for('groups'))
+
+# Group Goals Routes
+@app.route("/groups/<int:group_id>/goals/new", methods=['GET', 'POST'])
+@login_required
+def new_group_goal(group_id):
+    group = Group.query.get_or_404(group_id)
+    member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not member or not member.is_active:
+        abort(403)
+    
+    form = GroupGoalForm()
+    if form.validate_on_submit():
+        goal = GroupGoal(
+            group_id=group_id,
+            title=form.title.data,
+            description=form.description.data,
+            target_amount=form.target_amount.data,
+            deadline=form.deadline.data,
+            category=form.category.data,
+            proposer_id=current_user.id
+        )
+        db.session.add(goal)
+        db.session.commit()
+        
+        flash('Goal proposed successfully! Waiting for admin approval.', 'success')
+        return redirect(url_for('group_detail', group_id=group_id))
+    
+    return render_template("new_group_goal.html", title="Propose Group Goal", 
+                         form=form, group=group)
+
+@app.route("/groups/<int:group_id>/goals/<int:goal_id>/approve", methods=['POST'])
+@login_required
+def approve_group_goal(group_id, goal_id):
+    try:
+        group = Group.query.get_or_404(group_id)
+        member = GroupMember.query.filter_by(
+            group_id=group_id, 
+            user_id=current_user.id
+        ).first()
+        
+        if not member or member.role != 'admin':
+            flash('You do not have permission to approve goals.', 'danger')
+            return redirect(url_for('group_detail', group_id=group_id))
+        
+        goal = GroupGoal.query.get_or_404(goal_id)
+        if goal.group_id != group_id:
+            flash('Goal not found in this group.', 'danger')
+            return redirect(url_for('group_detail', group_id=group_id))
+        
+        if goal.status != 'proposed':
+            flash(f'This goal is already {goal.status} and cannot be approved.', 'warning')
+            return redirect(url_for('group_detail', group_id=group_id))
+        
+        # Check if group has enough balance
+        if group.balance < goal.target_amount:
+            flash(f'Insufficient group funds. Current balance: ${group.balance:.2f}, Goal amount: ${goal.target_amount:.2f}', 'danger')
+            return redirect(url_for('group_detail', group_id=group_id))
+        
+        # Create a transaction to deduct the goal amount
+        transaction = GroupTransaction(
+            group_id=group_id,
+            user_id=current_user.id,
+            amount=-goal.target_amount,
+            description=f"Goal approved: {goal.title}",
+            status='approved',
+            approved_by_id=current_user.id,
+            approved_at=datetime.utcnow()
+        )
+        db.session.add(transaction)
+        
+        # Update goal status
+        goal.status = 'approved'
+        goal.approved_by_id = current_user.id
+        goal.approved_at = datetime.utcnow()
+        
+        # Update group balance directly
+        group.balance -= goal.target_amount
+        
+        db.session.commit()
+        flash(f'Goal "{goal.title}" approved successfully! ${goal.target_amount:.2f} deducted from group savings.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error approving goal: {str(e)}', 'danger')
+        print(f"Error in goal approval: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    return redirect(url_for('group_detail', group_id=group_id))
+
+@app.route("/groups/<int:group_id>/goals/<int:goal_id>/deny", methods=['POST'])
+@login_required
+def deny_group_goal(group_id, goal_id):
+    group = Group.query.get_or_404(group_id)
+    member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not member or member.role != 'admin':
+        abort(403)
+    
+    goal = GroupGoal.query.get_or_404(goal_id)
+    if goal.group_id != group_id:
+        abort(404)
+    
+    goal.status = 'denied'
+    goal.approved_by_id = current_user.id
+    goal.approved_at = datetime.utcnow()
+    db.session.commit()
+    
+    flash('Goal denied.', 'info')
+    return redirect(url_for('group_detail', group_id=group_id))
+
+# Group Transactions Routes
+@app.route("/groups/<int:group_id>/transactions/new", methods=['GET', 'POST'])
+@login_required
+def new_group_transaction(group_id):
+    group = Group.query.get_or_404(group_id)
+    member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not member or not member.is_active:
+        abort(403)
+    
+    form = GroupTransactionForm()
+    if form.validate_on_submit():
+        # Check if user is admin - if so, auto-approve
+        is_admin = member.role == 'admin'
+        
+        transaction = GroupTransaction(
+            group_id=group_id,
+            user_id=current_user.id,
+            amount=form.amount.data,
+            description=form.description.data,
+            status='approved' if is_admin else 'pending'  # Auto-approve admin transactions
+        )
+        
+        if is_admin:
+            transaction.approved_by_id = current_user.id
+            transaction.approved_at = datetime.utcnow()
+            # Update group balance immediately for admin transactions
+            group.balance += form.amount.data
+        
+        db.session.add(transaction)
+        db.session.commit()
+        
+        if is_admin:
+            flash('Transaction added successfully!', 'success')
+        else:
+            flash('Transaction request submitted! Waiting for admin approval.', 'success')
+        
+        return redirect(url_for('group_detail', group_id=group_id))
+    
+    return render_template("new_group_transaction.html", title="New Group Transaction", 
+                         form=form, group=group, member=member)  # Added member here
+
+@app.route("/groups/<int:group_id>/transactions/<int:transaction_id>/approve", methods=['POST'])
+@login_required
+def approve_group_transaction(group_id, transaction_id):
+    group = Group.query.get_or_404(group_id)
+    member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not member or member.role != 'admin':
+        abort(403)
+    
+    transaction = GroupTransaction.query.get_or_404(transaction_id)
+    if transaction.group_id != group_id:
+        abort(404)
+    
+    try:
+        # Update group balance
+        group.balance += transaction.amount
+        
+        # Update transaction status
+        transaction.status = 'approved'
+        transaction.approved_by_id = current_user.id
+        transaction.approved_at = datetime.utcnow()
+        
+        db.session.commit()
+        flash('Transaction approved successfully!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error approving transaction: {str(e)}', 'danger')
+        print(f"Error in transaction approval: {e}")
+    
+    return redirect(url_for('group_detail', group_id=group_id))
+
+@app.route("/groups/<int:group_id>/transactions/<int:transaction_id>/deny", methods=['POST'])
+@login_required
+def deny_group_transaction(group_id, transaction_id):
+    group = Group.query.get_or_404(group_id)
+    member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not member or member.role != 'admin':
+        abort(403)
+    
+    transaction = GroupTransaction.query.get_or_404(transaction_id)
+    if transaction.group_id != group_id:
+        abort(404)
+    
+    transaction.status = 'denied'
+    transaction.approved_by_id = current_user.id
+    transaction.approved_at = datetime.utcnow()
+    db.session.commit()
+    
+    flash('Transaction denied.', 'info')
+    return redirect(url_for('group_detail', group_id=group_id))
+
+# Group Analytics Route
+@app.route("/groups/<int:group_id>/analytics")
+@login_required
+def group_analytics(group_id):
+    group = Group.query.get_or_404(group_id)
+    member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not member or not member.is_active:
+        abort(403)
+    
+    # Get analytics data
+    total_balance = group.total_balance
+    total_members = len([m for m in group.members if m.is_active])
+    total_goals = len(group.goals)
+    active_goals = len([g for g in group.goals if g.status == 'active'])
+    completed_goals = len([g for g in group.goals if g.status == 'completed'])
+    
+    # Get recent transactions for chart data
+    recent_transactions = GroupTransaction.query.filter_by(
+        group_id=group_id, 
+        status='approved'
+    ).order_by(GroupTransaction.occurred_at.desc()).limit(30).all()
+    
+    # Calculate monthly data (positive = contributions, negative = expenses)
+    monthly_data = {}
+    for tx in recent_transactions:
+        month = tx.occurred_at.strftime('%Y-%m')
+        if month not in monthly_data:
+            monthly_data[month] = {'contributions': 0, 'expenses': 0}
+        
+        if tx.amount > 0:
+            monthly_data[month]['contributions'] += tx.amount
+        else:
+            monthly_data[month]['expenses'] += abs(tx.amount)
+    
+    return render_template("group_analytics.html", title=f"{group.name} Analytics", 
+                         group=group, member=member, total_balance=total_balance,
+                         total_members=total_members, total_goals=total_goals,
+                         active_goals=active_goals, completed_goals=completed_goals,
+                         monthly_data=monthly_data)
+
+# Group Member Management Routes
+@app.route("/groups/<int:group_id>/members")
+@login_required
+def group_members(group_id):
+    group = Group.query.get_or_404(group_id)
+    member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not member or not member.is_active:
+        abort(403)
+    
+    return render_template("group_members.html", title=f"{group.name} Members", 
+                         group=group, member=member, current_user_member=member)  # Added current_user_member
+
+@app.route("/groups/<int:group_id>/members/<int:member_id>/promote", methods=['POST'])
+@login_required
+def promote_member(group_id, member_id):
+    group = Group.query.get_or_404(group_id)
+    admin_member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not admin_member or admin_member.role != 'admin':
+        abort(403)
+    
+    member_to_promote = GroupMember.query.get_or_404(member_id)
+    if member_to_promote.group_id != group_id:
+        abort(404)
+    
+    member_to_promote.role = 'admin'
+    db.session.commit()
+    
+    flash('Member promoted to admin successfully!', 'success')
+    return redirect(url_for('group_members', group_id=group_id))
+
+@app.route("/groups/<int:group_id>/members/<int:member_id>/demote", methods=['POST'])
+@login_required
+def demote_member(group_id, member_id):
+    group = Group.query.get_or_404(group_id)
+    admin_member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not admin_member or admin_member.role != 'admin':
+        abort(403)
+    
+    member_to_demote = GroupMember.query.get_or_404(member_id)
+    if member_to_demote.group_id != group_id:
+        abort(404)
+    
+    if member_to_demote.user_id == current_user.id:
+        flash('You cannot demote yourself.', 'danger')
+        return redirect(url_for('group_members', group_id=group_id))
+    
+    member_to_demote.role = 'member'
+    db.session.commit()
+    
+    flash('Member demoted to regular member.', 'info')
+    return redirect(url_for('group_members', group_id=group_id))
+
+@app.route("/groups/<int:group_id>/members/<int:member_id>/remove", methods=['POST'])
+@login_required
+def remove_member(group_id, member_id):
+    group = Group.query.get_or_404(group_id)
+    admin_member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not admin_member or admin_member.role != 'admin':
+        abort(403)
+    
+    member_to_remove = GroupMember.query.get_or_404(member_id)
+    if member_to_remove.group_id != group_id:
+        abort(404)
+    
+    if member_to_remove.user_id == current_user.id:
+        flash('You cannot remove yourself. Transfer admin role first.', 'danger')
+        return redirect(url_for('group_members', group_id=group_id))
+    
+    member_to_remove.is_active = False
+    db.session.commit()
+    
+    flash('Member removed from group.', 'info')
+    return redirect(url_for('group_members', group_id=group_id))
+
+# Join Request Management Routes
+@app.route("/groups/<int:group_id>/join-requests")
+@login_required
+def group_join_requests(group_id):
+    group = Group.query.get_or_404(group_id)
+    member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not member or member.role != 'admin':
+        abort(403)
+    
+    pending_requests = GroupJoinRequest.query.filter_by(
+        group_id=group_id,
+        status='pending'
+    ).order_by(GroupJoinRequest.requested_at.desc()).all()
+    
+    return render_template("group_join_requests.html", title=f"{group.name} Join Requests", 
+                         group=group, member=member, pending_requests=pending_requests)
+
+@app.route("/groups/<int:group_id>/join-requests/<int:request_id>/approve", methods=['POST'])
+@login_required
+def approve_join_request(group_id, request_id):
+    group = Group.query.get_or_404(group_id)
+    member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not member or member.role != 'admin':
+        abort(403)
+    
+    join_request = GroupJoinRequest.query.get_or_404(request_id)
+    if join_request.group_id != group_id:
+        abort(404)
+    
+    try:
+        # Check if user was previously a member
+        existing_member = GroupMember.query.filter_by(
+            group_id=group_id,
+            user_id=join_request.user_id
+        ).first()
+        
+        if existing_member:
+            # Reactivate existing member
+            existing_member.is_active = True
+            existing_member.joined_at = datetime.utcnow()  # Update join date
+        else:
+            # Create new member
+            new_member = GroupMember(
+                group_id=group_id,
+                user_id=join_request.user_id,
+                role='member'
+            )
+            db.session.add(new_member)
+        
+        # Update request status
+        join_request.status = 'approved'
+        join_request.responded_at = datetime.utcnow()
+        join_request.responded_by_id = current_user.id
+        db.session.commit()
+        
+        if existing_member:
+            flash(f'{join_request.user.username} has been reactivated as a member!', 'success')
+        else:
+            flash(f'{join_request.user.username} has been approved to join the group!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error approving join request: {str(e)}', 'danger')
+        print(f"Error in join request approval: {e}")
+    
+    return redirect(url_for('group_join_requests', group_id=group_id))
+
+@app.route("/groups/<int:group_id>/join-requests/<int:request_id>/deny", methods=['POST'])
+@login_required
+def deny_join_request(group_id, request_id):
+    group = Group.query.get_or_404(group_id)
+    member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not member or member.role != 'admin':
+        abort(404)
+    
+    join_request = GroupJoinRequest.query.get_or_404(request_id)
+    if join_request.group_id != group_id:
+        abort(404)
+    
+    # Update request status
+    join_request.status = 'denied'
+    join_request.responded_at = datetime.utcnow()
+    join_request.responded_by_id = current_user.id
+    db.session.commit()
+    
+    flash(f'{join_request.user.username}\'s join request has been denied.', 'info')
+    return redirect(url_for('group_join_requests', group_id=group_id))
+
+# User Preferences Routes
+@app.route("/preferences", methods=['GET', 'POST'])
+@login_required
+def user_preferences():
+    form = UserPreferencesForm()
+    if request.method == 'GET':
+        # Get current values from session, default to light mode
+        form.theme.data = session.get('theme', 'light')
+        form.notifications.data = session.get('notifications', True)
+    
+    if form.validate_on_submit():
+        # Store preferences in session instead of database
+        session['theme'] = form.theme.data
+        session['notifications'] = form.notifications.data
+        flash('Your preferences have been updated!', 'success')
+        return redirect(url_for('user_preferences'))
+    
+    return render_template("user_preferences.html", title="User Preferences", form=form)
+
+# Group Preferences Routes
+@app.route("/groups/<int:group_id>/preferences", methods=['GET', 'POST'])
+@login_required
+def group_preferences(group_id):
+    group = Group.query.get_or_404(group_id)
+    member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not member or member.role != 'admin':
+        flash('Only group admins can access group preferences.', 'danger')
+        return redirect(url_for('group_detail', group_id=group_id))
+    
+    # Get or create group preferences
+    preferences = GroupPreference.query.filter_by(group_id=group_id).first()
+    if not preferences:
+        preferences = GroupPreference(
+            group_id=group_id,
+            is_open=group.is_open,  # Use existing group setting
+            default_currency=group.currency
+        )
+        db.session.add(preferences)
+        db.session.commit()
+    
+    form = GroupPreferencesForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Update group settings
+            group.is_open = form.is_open.data
+            group.currency = form.default_currency.data
+            
+            # Update preferences
+            preferences.is_open = form.is_open.data
+            preferences.default_currency = form.default_currency.data
+            preferences.require_goal_approval = form.require_goal_approval.data
+            preferences.require_transaction_approval = form.require_transaction_approval.data
+            preferences.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            flash('Group preferences have been updated!', 'success')
+            return redirect(url_for('group_preferences', group_id=group_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating preferences: {str(e)}', 'danger')
+            print(f"Error in group preferences update: {e}")
+    
+    elif request.method == 'GET':
+        form.is_open.data = preferences.is_open
+        form.default_currency.data = preferences.default_currency
+        form.require_goal_approval.data = preferences.require_goal_approval
+        form.require_transaction_approval.data = preferences.require_transaction_approval  # Fixed this line
+    
+    return render_template("group_preferences.html", title=f"{group.name} Preferences", 
+                         form=form, group=group, member=member)

@@ -1,28 +1,104 @@
 {% extends "layout.html" %}
 {% block content %}
-    <h1>Home Page</h1>
-    {% for goal in goals.items %}
-        <article class="media content-section">
-            <img class="rounded-circle article-img" src="{{ url_for('static', filename='profile_pics/' + goal.owner.image_file) }}">
-            <div class="media-body">
-                <div class="article-metadata">
-                    <a class="mr-2" href="{{ url_for('user_goals', username=goal.owner.username)}}">{{ goal.owner.username }}</a>
-                    <small class="text-muted"> {{ goal.date_time.strftime('%Y-%m-%d') }}</small>
+<div class="content-section">
+    {% if current_user.is_authenticated %}
+        <!-- Content for logged-in users -->
+        <h1 class="mb-4">Welcome back to FundFlow!</h1>
+        <p class="lead">Continue managing your financial goals and building your future.</p>
+        
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Welcome back, {{ current_user.username }}!</h5>
+                        <p class="card-text">Manage your financial goals and track your progress from the sidebar.</p>
+                    </div>
                 </div>
-                <h2><a class="article-title" href="{{ url_for('goal', goal_id=goal.id) }}">{{ goal.title }}</a></h2>
-                <p class="article-content"> {{ goal.description }}</p>
             </div>
-        </article>
-    {% endfor %}
-    {% for page_num in goals.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
-        {% if page_num %}
-            {% if goals.page == page_num %}
-                <a class="btn btn-info mb-4" href="{{ url_for('home', page=page_num) }}">{{ page_num }}</a> 
-            {% else %}    
-                <a class="btn btn-outline-info mb-4" href="{{ url_for('home', page=page_num) }}">{{ page_num }}</a> 
-            {% endif %}
-        {% else %}
-            ...
-        {% endif %}
-    {% endfor %}
+        </div>
+    {% else %}
+        <!-- Content for anonymous users -->
+        <div class="text-center">
+            <h1 class="display-4 mb-4">Welcome to FundFlow</h1>
+            <p class="lead mb-5">Your personal finance and goal management platform that helps you achieve your dreams.</p>
+        </div>
+        
+        <div class="row mt-5">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h3 class="card-title text-primary">Smart Savings</h3>
+                        <p class="card-text">Set realistic financial goals and watch your savings grow with our intelligent tracking system.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h3 class="card-title text-success">Goal Achievement</h3>
+                        <p class="card-text">Break down big dreams into achievable milestones and celebrate every step forward.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h3 class="card-title text-info">Visual Progress</h3>
+                        <p class="card-text">See your financial journey with beautiful charts and progress indicators.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h3 class="card-title text-warning">Future Planning</h3>
+                        <p class="card-text">Plan for major life events with confidence and financial security.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-5">
+            <div class="col-md-8 offset-md-2">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center py-5">
+                        <h2 class="card-title mb-4">Ready to Start Your Financial Journey?</h2>
+                        <p class="card-text mb-4">Join thousands of users who are already achieving their financial goals with FundFlow.</p>
+                        <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
+                            <a href="{{ url_for('register') }}" class="btn btn-light btn-lg px-5">Sign Up Now</a>
+                            <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-lg px-5">Already have an account? Login</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-5">
+            <div class="col-md-10 offset-md-1">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h4 class="card-title">Why Choose FundFlow?</h4>
+                        <div class="row mt-4">
+                            <div class="col-md-4">
+                                <h5>Simple & Intuitive</h5>
+                                <p>Easy-to-use interface that makes financial planning accessible to everyone.</p>
+                            </div>
+                            <div class="col-md-4">
+                                <h5>Secure & Private</h5>
+                                <p>Your financial data is protected with industry-standard security measures.</p>
+                            </div>
+                            <div class="col-md-4">
+                                <h5>Always Accessible</h5>
+                                <p>Access your goals and progress from anywhere, anytime.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
 {% endblock %}

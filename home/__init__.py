@@ -8,6 +8,7 @@ from pathlib import Path
 from datetime import datetime
 from flask_mail import Mail
 from dotenv import load_dotenv
+from flask_migrate import Migrate
 load_dotenv()
 
 project_root = str(Path(__file__).parent.parent)
@@ -32,5 +33,6 @@ app.config['MAIL_USE_SSL'] = False
 app.config['MAIL_USERNAME'] = os.environ.get('EMAIL_USER')
 app.config['MAIL_PASSWORD'] = os.environ.get('EMAIL_PASS')
 mail = Mail(app)
+migrate = Migrate(app, db)
 
 from home import routes

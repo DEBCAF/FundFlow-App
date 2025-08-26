@@ -80,3 +80,191 @@ body {
     font-size: 2.5rem;
   }
   
+/* Light mode navbar - restore gold-ish background */
+.navbar {
+    background: linear-gradient(135deg, #ffd700, #ffed4e) !important;
+    border-bottom: 1px solid #e6c200;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.navbar-nav .nav-link {
+    color: #8b6914 !important;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.3);
+}
+
+.navbar-nav .nav-link:hover {
+    color: #5d4a0d !important;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.5);
+}
+
+.navbar-brand {
+    color: #8b6914 !important;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.3);
+}
+
+/* Dark mode styles with better contrast and gold navbar */
+[data-theme="dark"] {
+    --bg-color: #1a1a1a;
+    --text-color: #ffffff;
+    --title-color: #ffffff;
+    --card-bg: #2d2d2d;
+    --border-color: #404040;
+    --navbar-bg: linear-gradient(135deg, #b8860b, #daa520);
+    --navbar-text: #2d2d2d;
+    --navbar-hover: #1a1a1a;
+    --navbar-brand: #2d2d2d;
+}
+
+[data-theme="dark"] body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] h1, 
+[data-theme="dark"] h2, 
+[data-theme="dark"] h3, 
+[data-theme="dark"] h4, 
+[data-theme="dark"] h5, 
+[data-theme="dark"] h6 {
+    color: var(--title-color);
+}
+
+[data-theme="dark"] .card {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .card-title {
+    color: var(--title-color);
+}
+
+[data-theme="dark"] .navbar {
+    background: var(--navbar-bg) !important;
+    border-bottom: 1px solid #8b6914;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+[data-theme="dark"] .navbar-nav .nav-link {
+    color: var(--navbar-text) !important;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.3);
+}
+
+[data-theme="dark"] .navbar-nav .nav-link:hover {
+    color: var(--navbar-hover) !important;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.5);
+}
+
+[data-theme="dark"] .navbar-brand {
+    color: var(--navbar-brand) !important;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.3);
+}
+
+[data-theme="dark"] .content-section {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .content-section h1,
+[data-theme="dark"] .content-section h2,
+[data-theme="dark"] .content-section h3,
+[data-theme="dark"] .content-section h4,
+[data-theme="dark"] .content-section h5,
+[data-theme="dark"] .content-section h6 {
+    color: var(--title-color);
+}
+
+[data-theme="dark"] .btn {
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .form-control {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .form-control:focus {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+[data-theme="dark"] .form-select {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .form-select:focus {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+[data-theme="dark"] .form-label {
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .text-muted {
+    color: #d0d0d0 !important;
+}
+
+/* Restore alert colors in dark mode */
+[data-theme="dark"] .alert-success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+[data-theme="dark"] .alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+[data-theme="dark"] .alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+    color: #856404;
+}
+
+[data-theme="dark"] .alert-info {
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+    color: #0c5460;
+}
+
+[data-theme="dark"] .table {
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .table td,
+[data-theme="dark"] .table th {
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .pagination .page-link {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .pagination .page-link:hover {
+    background-color: var(--border-color);
+    color: var(--navbar-hover);
+}
+
+[data-theme="dark"] .pagination .page-item.active .page-link {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+  

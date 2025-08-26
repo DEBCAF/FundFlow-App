@@ -1,0 +1,88 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="content-section">
+    <h1 class="mb-4">{{ group.name }} Analytics</h1>
+    
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Total Balance</h5>
+                    <h3 class="text-success">{{ group.currency }} {{ '%.2f'|format(total_balance) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Members</h5>
+                    <h3 class="text-info">{{ total_members }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Active Goals</h5>
+                    <h3 class="text-warning">{{ active_goals }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Completed Goals</h5>
+                    <h3 class="text-success">{{ completed_goals }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Monthly Data Chart -->
+    {% if monthly_data %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Monthly Activity</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Contributions</th>
+                                <th>Expenses</th>
+                                <th>Net</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for month, data in monthly_data.items() %}
+                                <tr>
+                                    <td>{{ month }}</td>
+                                    <td class="text-success">+{{ '%.2f'|format(data.contributions) }}</td>
+                                    <td class="text-danger">-{{ '%.2f'|format(data.expenses) }}</td>
+                                    <td class="{% if data.contributions - data.expenses >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ '%.2f'|format(data.contributions - data.expenses) }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                <h5>No transaction data yet</h5>
+                <p class="text-muted">Start making transactions to see analytics here.</p>
+            </div>
+        </div>
+    {% endif %}
+    
+    <div class="text-center">
+        <a href="{{ url_for('group_detail', group_id=group.id) }}" class="btn btn-outline-primary">Back to Group</a>
+    </div>
+</div>
+{% endblock %}
