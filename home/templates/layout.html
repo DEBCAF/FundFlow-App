@@ -1,100 +1,41 @@
-<html data-theme="{{ session.get('theme', 'light') }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT" crossorigin="anonymous">
-        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='main.css') }}">
-        {% if title %}
-            <title>FundFlow - {{ title }}</title>
-        {% else %}
-            <title>FundFlow</title>
-        {% endif %}
-    </head>
-    <body>
-        <header class="site-header">
-            <nav class="navbar navbar-expand-md navbar-dark bg-steel fixed-top">
-            <div class="container">
-                <a class="navbar-brand mr-4" href="/">FundFlow</a>
-                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarToggle" aria-controls="navbarToggle" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarToggle">
-                <div class="navbar-nav mr-auto">
-                    <a class="nav-item nav-link" href="/">Home</a>
-                    <a class="nav-item nav-link" href="/about">About</a>
-                    {% if current_user.is_authenticated %}
-                        <a class="nav-item nav-link" href="/goals">Goals</a>
-                        <a class="nav-item nav-link" href="/groups">Groups</a>
-                    {% endif %}
-                </div>
-                <div class="navbar-nav">
-                    {% if current_user.is_authenticated %}
-                        <a class="nav-item nav-link" href="/dashboard">Dashboard</a>
-                        <a class="nav-item nav-link" href="#" onclick="confirmLogout()">Logout</a>
-                        <a class="nav-item nav-link" href="/account">Account</a>
-                    {% else %}
-                        <a class="nav-item nav-link" href="/login">Login</a>
-                        <a class="nav-item nav-link" href="/register">Register</a>
-                    {% endif %}
-                </div>
-                </div>
-            </div>
-            </nav>
-        </header>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if title %}FundFlow - {{ title }}{% else %}FundFlow{% endif %}</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='main.css') }}">
+</head>
+<body>
+    <div class="container">
+        <nav class="navbar">
+            <a href="/">FundFlow</a>
+            <a href="/about">About</a>
+            {% if current_user.is_authenticated %}
+                <a href="/goals">Goals</a>
+                <a href="/groups">Groups</a>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/account">Account</a>
+                <a href="/logout">Logout</a>
+            {% else %}
+                <a href="/login">Login</a>
+                <a href="/register">Register</a>
+            {% endif %}
+        </nav>
         
-        <main role="main" class="container">
-            <div class="row">
-            <div class="col-md-8">
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{category}}">
-                                {{message}}
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
-                {% block content %}{% endblock %}
-            </div>
-            <div class="col-md-4">
-                <div class="content-section">
-                <h3>Quick Actions</h3>
-                {% if current_user.is_authenticated %}
-                    <div class="d-grid gap-2">
-                        <a href="{{ url_for('goals') }}" class="btn btn-primary">View My Goals</a>
-                        <a href="{{ url_for('new_goal') }}" class="btn btn-success">Create New Goal</a>
-                        <a href="{{ url_for('dashboard') }}" class="btn btn-info">Go to Dashboard</a>
-                        <hr>
-                        <a href="{{ url_for('groups') }}" class="btn btn-outline-primary">View Groups</a>
-                        <a href="{{ url_for('create_group') }}" class="btn btn-outline-success">Create Group</a>
-                        <a href="{{ url_for('join_group') }}" class="btn btn-outline-info">Join Group</a>
-                        <hr>
-                        <a href="{{ url_for('user_preferences') }}" class="btn btn-outline-secondary">User Preferences</a>
-                    </div>
-                    <hr>
-                    <div class="mt-3">
-                        <h6>Current Status</h6>
-                        <p class="text-success mb-0">Savings: ${{ '%.2f'|format(current_user.savings or 0) }}</p>
-                    </div>
-                {% else %}
-                    <p class='text-muted'>Get started with FundFlow</p>
-                    <div class="d-grid gap-2">
-                        <a href="{{ url_for('register') }}" class="btn btn-primary">Sign Up</a>
-                        <a href="{{ url_for('login') }}" class="btn btn-outline-primary">Login</a>
-                    </div>
+        <main class="content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
                 {% endif %}
-                </div>
-            </div>
-            </div>
+            {% endwith %}
+            
+            {% block content %}{% endblock %}
         </main>
-  
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js" integrity="sha384-j1CDi7MgGQ12Z7Qab0qlWQ/Qqz24Gc6BM0thvEMVjHnfYGF0rmFCozFSxQBxwHKO" crossorigin="anonymous"></script>
-        <script>
-            function confirmLogout() {
-                if (confirm('Are you sure you want to logout?')) {
-                    window.location.href = '/logout';
-                }
-            }
-        </script>
-    </body>
+    </div>
+</body>
 </html>

@@ -1,270 +1,92 @@
-
 body {
-    background: #fafafa;
-    color: #333333;
-    margin-top: 5rem;
-  }
-  
-  h1, h2, h3, h4, h5, h6 {
-    color: #444444;
-  }
-  
-  .bg-steel {
-    background-color: #c5b4509e;
-  }
-  
-  .site-header .navbar-nav .nav-link {
-    color: #cbd5db;
-  }
-  
-  .site-header .navbar-nav .nav-link:hover {
-    color: #ffffff;
-  }
-  
-  .site-header .navbar-nav .nav-link.active {
-    font-weight: 500;
-  }
-  
-  .content-section {
-    background: #ffffff;
-    padding: 10px 20px;
-    border: 1px solid #dddddd;
-    border-radius: 3px;
-    margin-bottom: 20px;
-  }
-  
-  .article-title {
-    color: #444444;
-  }
-  
-  a.article-title:hover {
-    color: #428bca;
-    text-decoration: none;
-  }
-  
-  .article-content {
-    white-space: pre-line;
-  }
-  
-  .article-img {
-    height: 65px;
-    width: 65px;
-    margin-right: 16px;
-  }
-  
-  .article-metadata {
-    padding-bottom: 1px;
-    margin-bottom: 4px;
-    border-bottom: 1px solid #e3e3e3
-  }
-  
-  .article-metadata a:hover {
-    color: #333;
-    text-decoration: none;
-  }
-  
-  .article-svg {
-    width: 25px;
-    height: 25px;
-    vertical-align: middle;
-  }
-  
-  .account-img {
-    height: 125px;
-    width: 125px;
-    margin-right: 20px;
-    margin-bottom: 16px;
-  }
-  
-  .account-heading {
-    font-size: 2.5rem;
-  }
-  
-/* Light mode navbar - restore gold-ish background */
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f5f5f5;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
 .navbar {
-    background: linear-gradient(135deg, #ffd700, #ffed4e) !important;
-    border-bottom: 1px solid #e6c200;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background-color: #333;
+    color: white;
+    padding: 10px;
+    margin-bottom: 20px;
 }
 
-.navbar-nav .nav-link {
-    color: #8b6914 !important;
-    font-weight: 600;
-    text-shadow: 0 1px 2px rgba(255,255,255,0.3);
+.navbar a {
+    color: white;
+    text-decoration: none;
+    margin-right: 15px;
 }
 
-.navbar-nav .nav-link:hover {
-    color: #5d4a0d !important;
-    text-shadow: 0 1px 2px rgba(255,255,255,0.5);
+.content {
+    background-color: white;
+    padding: 20px;
+    border: 1px solid #ddd;
 }
 
-.navbar-brand {
-    color: #8b6914 !important;
-    font-weight: 700;
-    text-shadow: 0 1px 2px rgba(255,255,255,0.3);
+.form-group {
+    margin-bottom: 15px;
 }
 
-/* Dark mode styles with better contrast and gold navbar */
-[data-theme="dark"] {
-    --bg-color: #1a1a1a;
-    --text-color: #ffffff;
-    --title-color: #ffffff;
-    --card-bg: #2d2d2d;
-    --border-color: #404040;
-    --navbar-bg: linear-gradient(135deg, #b8860b, #daa520);
-    --navbar-text: #2d2d2d;
-    --navbar-hover: #1a1a1a;
-    --navbar-brand: #2d2d2d;
+.form-control {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
 }
 
-[data-theme="dark"] body {
-    background-color: var(--bg-color);
-    color: var(--text-color);
+.btn {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
 }
 
-[data-theme="dark"] h1, 
-[data-theme="dark"] h2, 
-[data-theme="dark"] h3, 
-[data-theme="dark"] h4, 
-[data-theme="dark"] h5, 
-[data-theme="dark"] h6 {
-    color: var(--title-color);
+.btn:hover {
+    background-color: #0056b3;
 }
 
-[data-theme="dark"] .card {
-    background-color: var(--card-bg);
-    border-color: var(--border-color);
-    color: var(--text-color);
+.card {
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin-bottom: 15px;
 }
 
-[data-theme="dark"] .card-title {
-    color: var(--title-color);
+.alert {
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid transparent;
 }
 
-[data-theme="dark"] .navbar {
-    background: var(--navbar-bg) !important;
-    border-bottom: 1px solid #8b6914;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-}
-
-[data-theme="dark"] .navbar-nav .nav-link {
-    color: var(--navbar-text) !important;
-    font-weight: 600;
-    text-shadow: 0 1px 2px rgba(255,255,255,0.3);
-}
-
-[data-theme="dark"] .navbar-nav .nav-link:hover {
-    color: var(--navbar-hover) !important;
-    text-shadow: 0 1px 2px rgba(255,255,255,0.5);
-}
-
-[data-theme="dark"] .navbar-brand {
-    color: var(--navbar-brand) !important;
-    font-weight: 700;
-    text-shadow: 0 1px 2px rgba(255,255,255,0.3);
-}
-
-[data-theme="dark"] .content-section {
-    background-color: var(--card-bg);
-    border-color: var(--border-color);
-    color: var(--text-color);
-}
-
-[data-theme="dark"] .content-section h1,
-[data-theme="dark"] .content-section h2,
-[data-theme="dark"] .content-section h3,
-[data-theme="dark"] .content-section h4,
-[data-theme="dark"] .content-section h5,
-[data-theme="dark"] .content-section h6 {
-    color: var(--title-color);
-}
-
-[data-theme="dark"] .btn {
-    color: var(--text-color);
-}
-
-[data-theme="dark"] .form-control {
-    background-color: var(--card-bg);
-    border-color: var(--border-color);
-    color: var(--text-color);
-}
-
-[data-theme="dark"] .form-control:focus {
-    background-color: var(--card-bg);
-    color: var(--text-color);
-    border-color: #007bff;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
-
-[data-theme="dark"] .form-select {
-    background-color: var(--card-bg);
-    border-color: var(--border-color);
-    color: var(--text-color);
-}
-
-[data-theme="dark"] .form-select:focus {
-    background-color: var(--card-bg);
-    color: var(--text-color);
-    border-color: #007bff;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
-
-[data-theme="dark"] .form-label {
-    color: var(--text-color);
-}
-
-[data-theme="dark"] .text-muted {
-    color: #d0d0d0 !important;
-}
-
-/* Restore alert colors in dark mode */
-[data-theme="dark"] .alert-success {
+.alert-success {
     background-color: #d4edda;
     border-color: #c3e6cb;
     color: #155724;
 }
 
-[data-theme="dark"] .alert-danger {
+.alert-danger {
     background-color: #f8d7da;
     border-color: #f5c6cb;
     color: #721c24;
 }
 
-[data-theme="dark"] .alert-warning {
-    background-color: #fff3cd;
-    border-color: #ffeaa7;
-    color: #856404;
+.account-img {
+    height: 64px;
+    width: 64px;
+    margin-right: 15px;
+    border-radius: 50%;
 }
 
-[data-theme="dark"] .alert-info {
-    background-color: #d1ecf1;
-    border-color: #bee5eb;
-    color: #0c5460;
+.media {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
 }
 
-[data-theme="dark"] .table {
-    color: var(--text-color);
+.media-body {
+    flex: 1;
 }
-
-[data-theme="dark"] .table td,
-[data-theme="dark"] .table th {
-    border-color: var(--border-color);
-}
-
-[data-theme="dark"] .pagination .page-link {
-    background-color: var(--card-bg);
-    border-color: var(--border-color);
-    color: var(--text-color);
-}
-
-[data-theme="dark"] .pagination .page-link:hover {
-    background-color: var(--border-color);
-    color: var(--navbar-hover);
-}
-
-[data-theme="dark"] .pagination .page-item.active .page-link {
-    background-color: #007bff;
-    border-color: #007bff;
-    color: white;
-}
-  

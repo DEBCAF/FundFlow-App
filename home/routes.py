@@ -348,15 +348,13 @@ def reset_token(token):
 @login_required
 def groups():
     page = request.args.get('page', 1, type=int)
-    per_page = 6  # Show 6 groups per page (2 rows of 3)
+    per_page = 6
     
-    # Get paginated groups where user is a member
     user_groups = Group.query.join(GroupMember).filter(
         GroupMember.user_id == current_user.id,
         GroupMember.is_active == True
     ).paginate(page=page, per_page=per_page, error_out=False)
     
-    # Get groups where user is admin (for badges)
     admin_groups = Group.query.join(GroupMember).filter(
         GroupMember.user_id == current_user.id,
         GroupMember.role == 'admin',
@@ -378,9 +376,8 @@ def create_group():
             is_open=form.is_open.data
         )
         db.session.add(group)
-        db.session.flush()  # Get the group ID
+        db.session.flush()
         
-        # Add creator as admin
         admin_member = GroupMember(
             group_id=group.id,
             user_id=current_user.id,
@@ -399,19 +396,16 @@ def create_group():
 def join_group():
     form = JoinGroupForm()
     if form.validate_on_submit():
-        # Find group by ID instead of name
         group = Group.query.filter_by(id=form.group_id.data, is_active=True).first()
         
         if not group:
             flash('Group not found or inactive.', 'danger')
             return redirect(url_for('join_group'))
         
-        # Check if group is closed - if so, reject immediately
         if not group.is_open:
             flash('This group is closed and not accepting any new members or rejoins.', 'danger')
             return redirect(url_for('join_group'))
         
-        # Check if user is already an active member
         existing_member = GroupMember.query.filter_by(
             group_id=group.id, 
             user_id=current_user.id,
@@ -422,7 +416,6 @@ def join_group():
             flash('You are already an active member of this group.', 'info')
             return redirect(url_for('group_detail', group_id=group.id))
         
-        # Check if there's already a pending request
         existing_request = GroupJoinRequest.query.filter_by(
             group_id=group.id,
             user_id=current_user.id,
@@ -433,8 +426,6 @@ def join_group():
             flash('You already have a pending join request for this group.', 'info')
             return redirect(url_for('join_group'))
         
-        # For both new joins and rejoins, create join request
-        # Check if user was previously a member
         was_previous_member = GroupMember.query.filter_by(
             group_id=group.id,
             user_id=current_user.id,
@@ -470,13 +461,10 @@ def group_detail(group_id):
     if not member or not member.is_active:
         abort(403)
     
-    # Get group goals
     goals = GroupGoal.query.filter_by(group_id=group_id).order_by(GroupGoal.created_at.desc()).all()
     
-    # Get recent transactions
     transactions = GroupTransaction.query.filter_by(group_id=group_id).order_by(GroupTransaction.occurred_at.desc()).limit(10).all()
     
-    # Get pending approvals (for admins)
     pending_goals = []
     pending_transactions = []
     if member.role == 'admin':
@@ -517,7 +505,6 @@ def leave_group(group_id):
     flash('Successfully left the group.', 'success')
     return redirect(url_for('groups'))
 
-# Group Goals Routes
 @app.route("/groups/<int:group_id>/goals/new", methods=['GET', 'POST'])
 @login_required
 def new_group_goal(group_id):
@@ -573,12 +560,10 @@ def approve_group_goal(group_id, goal_id):
             flash(f'This goal is already {goal.status} and cannot be approved.', 'warning')
             return redirect(url_for('group_detail', group_id=group_id))
         
-        # Check if group has enough balance
         if group.balance < goal.target_amount:
             flash(f'Insufficient group funds. Current balance: ${group.balance:.2f}, Goal amount: ${goal.target_amount:.2f}', 'danger')
             return redirect(url_for('group_detail', group_id=group_id))
-        
-        # Create a transaction to deduct the goal amount
+
         transaction = GroupTransaction(
             group_id=group_id,
             user_id=current_user.id,
@@ -590,12 +575,10 @@ def approve_group_goal(group_id, goal_id):
         )
         db.session.add(transaction)
         
-        # Update goal status
         goal.status = 'approved'
         goal.approved_by_id = current_user.id
         goal.approved_at = datetime.utcnow()
         
-        # Update group balance directly
         group.balance -= goal.target_amount
         
         db.session.commit()
@@ -634,7 +617,6 @@ def deny_group_goal(group_id, goal_id):
     flash('Goal denied.', 'info')
     return redirect(url_for('group_detail', group_id=group_id))
 
-# Group Transactions Routes
 @app.route("/groups/<int:group_id>/transactions/new", methods=['GET', 'POST'])
 @login_required
 def new_group_transaction(group_id):
@@ -649,7 +631,6 @@ def new_group_transaction(group_id):
     
     form = GroupTransactionForm()
     if form.validate_on_submit():
-        # Check if user is admin - if so, auto-approve
         is_admin = member.role == 'admin'
         
         transaction = GroupTransaction(
@@ -657,13 +638,12 @@ def new_group_transaction(group_id):
             user_id=current_user.id,
             amount=form.amount.data,
             description=form.description.data,
-            status='approved' if is_admin else 'pending'  # Auto-approve admin transactions
+            status='approved' if is_admin else 'pending' 
         )
         
         if is_admin:
             transaction.approved_by_id = current_user.id
             transaction.approved_at = datetime.utcnow()
-            # Update group balance immediately for admin transactions
             group.balance += form.amount.data
         
         db.session.add(transaction)
@@ -677,7 +657,7 @@ def new_group_transaction(group_id):
         return redirect(url_for('group_detail', group_id=group_id))
     
     return render_template("new_group_transaction.html", title="New Group Transaction", 
-                         form=form, group=group, member=member)  # Added member here
+                         form=form, group=group, member=member)  
 
 @app.route("/groups/<int:group_id>/transactions/<int:transaction_id>/approve", methods=['POST'])
 @login_required
@@ -696,10 +676,8 @@ def approve_group_transaction(group_id, transaction_id):
         abort(404)
     
     try:
-        # Update group balance
         group.balance += transaction.amount
         
-        # Update transaction status
         transaction.status = 'approved'
         transaction.approved_by_id = current_user.id
         transaction.approved_at = datetime.utcnow()
@@ -738,7 +716,6 @@ def deny_group_transaction(group_id, transaction_id):
     flash('Transaction denied.', 'info')
     return redirect(url_for('group_detail', group_id=group_id))
 
-# Group Analytics Route
 @app.route("/groups/<int:group_id>/analytics")
 @login_required
 def group_analytics(group_id):
@@ -751,20 +728,17 @@ def group_analytics(group_id):
     if not member or not member.is_active:
         abort(403)
     
-    # Get analytics data
     total_balance = group.total_balance
     total_members = len([m for m in group.members if m.is_active])
     total_goals = len(group.goals)
     active_goals = len([g for g in group.goals if g.status == 'active'])
     completed_goals = len([g for g in group.goals if g.status == 'completed'])
     
-    # Get recent transactions for chart data
     recent_transactions = GroupTransaction.query.filter_by(
         group_id=group_id, 
         status='approved'
     ).order_by(GroupTransaction.occurred_at.desc()).limit(30).all()
     
-    # Calculate monthly data (positive = contributions, negative = expenses)
     monthly_data = {}
     for tx in recent_transactions:
         month = tx.occurred_at.strftime('%Y-%m')
@@ -782,7 +756,6 @@ def group_analytics(group_id):
                          active_goals=active_goals, completed_goals=completed_goals,
                          monthly_data=monthly_data)
 
-# Group Member Management Routes
 @app.route("/groups/<int:group_id>/members")
 @login_required
 def group_members(group_id):
@@ -796,7 +769,7 @@ def group_members(group_id):
         abort(403)
     
     return render_template("group_members.html", title=f"{group.name} Members", 
-                         group=group, member=member, current_user_member=member)  # Added current_user_member
+                         group=group, member=member, current_user_member=member)
 
 @app.route("/groups/<int:group_id>/members/<int:member_id>/promote", methods=['POST'])
 @login_required
@@ -872,7 +845,6 @@ def remove_member(group_id, member_id):
     flash('Member removed from group.', 'info')
     return redirect(url_for('group_members', group_id=group_id))
 
-# Join Request Management Routes
 @app.route("/groups/<int:group_id>/join-requests")
 @login_required
 def group_join_requests(group_id):
@@ -910,18 +882,15 @@ def approve_join_request(group_id, request_id):
         abort(404)
     
     try:
-        # Check if user was previously a member
         existing_member = GroupMember.query.filter_by(
             group_id=group_id,
             user_id=join_request.user_id
         ).first()
         
         if existing_member:
-            # Reactivate existing member
             existing_member.is_active = True
-            existing_member.joined_at = datetime.utcnow()  # Update join date
+            existing_member.joined_at = datetime.utcnow()
         else:
-            # Create new member
             new_member = GroupMember(
                 group_id=group_id,
                 user_id=join_request.user_id,
@@ -929,7 +898,6 @@ def approve_join_request(group_id, request_id):
             )
             db.session.add(new_member)
         
-        # Update request status
         join_request.status = 'approved'
         join_request.responded_at = datetime.utcnow()
         join_request.responded_by_id = current_user.id
@@ -963,7 +931,6 @@ def deny_join_request(group_id, request_id):
     if join_request.group_id != group_id:
         abort(404)
     
-    # Update request status
     join_request.status = 'denied'
     join_request.responded_at = datetime.utcnow()
     join_request.responded_by_id = current_user.id
@@ -972,18 +939,15 @@ def deny_join_request(group_id, request_id):
     flash(f'{join_request.user.username}\'s join request has been denied.', 'info')
     return redirect(url_for('group_join_requests', group_id=group_id))
 
-# User Preferences Routes
 @app.route("/preferences", methods=['GET', 'POST'])
 @login_required
 def user_preferences():
     form = UserPreferencesForm()
     if request.method == 'GET':
-        # Get current values from session, default to light mode
         form.theme.data = session.get('theme', 'light')
         form.notifications.data = session.get('notifications', True)
     
     if form.validate_on_submit():
-        # Store preferences in session instead of database
         session['theme'] = form.theme.data
         session['notifications'] = form.notifications.data
         flash('Your preferences have been updated!', 'success')
@@ -991,7 +955,6 @@ def user_preferences():
     
     return render_template("user_preferences.html", title="User Preferences", form=form)
 
-# Group Preferences Routes
 @app.route("/groups/<int:group_id>/preferences", methods=['GET', 'POST'])
 @login_required
 def group_preferences(group_id):
@@ -1005,12 +968,11 @@ def group_preferences(group_id):
         flash('Only group admins can access group preferences.', 'danger')
         return redirect(url_for('group_detail', group_id=group_id))
     
-    # Get or create group preferences
     preferences = GroupPreference.query.filter_by(group_id=group_id).first()
     if not preferences:
         preferences = GroupPreference(
             group_id=group_id,
-            is_open=group.is_open,  # Use existing group setting
+            is_open=group.is_open,  
             default_currency=group.currency
         )
         db.session.add(preferences)
@@ -1020,11 +982,9 @@ def group_preferences(group_id):
     
     if form.validate_on_submit():
         try:
-            # Update group settings
             group.is_open = form.is_open.data
             group.currency = form.default_currency.data
             
-            # Update preferences
             preferences.is_open = form.is_open.data
             preferences.default_currency = form.default_currency.data
             preferences.require_goal_approval = form.require_goal_approval.data
@@ -1044,7 +1004,7 @@ def group_preferences(group_id):
         form.is_open.data = preferences.is_open
         form.default_currency.data = preferences.default_currency
         form.require_goal_approval.data = preferences.require_goal_approval
-        form.require_transaction_approval.data = preferences.require_transaction_approval  # Fixed this line
+        form.require_transaction_approval.data = preferences.require_transaction_approval  
     
     return render_template("group_preferences.html", title=f"{group.name} Preferences", 
                          form=form, group=group, member=member)

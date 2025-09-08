@@ -1,94 +1,50 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="content-section">
-    <h1 class="mb-4">Dashboard</h1>
+    <h1>Dashboard</h1>
     
-    <!-- Current Savings Display -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h4 class="mb-0">Current Savings Balance</h4>
-        </div>
-        <div class="card-body">
-            <h2 class="text-success">${{ '%.2f'|format(current_user.savings or 0) }}</h2>
-        </div>
+    <div class="card">
+        <h3>Current Savings</h3>
+        <p>${{ '%.2f'|format(current_user.savings or 0) }}</p>
     </div>
     
-    <!-- Adjust Savings Form -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h4 class="mb-0">Adjust Savings</h4>
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('adjust_savings') }}">
-                {{ adjust_form.hidden_tag() }}
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            {{ adjust_form.operation.label(class="form-control-label") }}
-                            {{ adjust_form.operation(class="form-control") }}
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            {{ adjust_form.amount.label(class="form-control-label") }}
-                            {{ adjust_form.amount(class="form-control") }}
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            {{ adjust_form.description.label(class="form-control-label") }}
-                            {{ adjust_form.description(class="form-control") }}
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-group">
-                            <label class="form-control-label">&nbsp;</label>
-                            <div class="d-grid gap-2 d-md-block">
-                                <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#adjustSavingsForm" aria-expanded="false">
-                                    Adjust Savings
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </form>
-        </div>
+    <div class="card">
+        <h3>Adjust Savings</h3>
+        <form method="POST" action="{{ url_for('adjust_savings') }}">
+            {{ adjust_form.hidden_tag() }}
+            <div class="form-group">
+                {{ adjust_form.operation.label }}
+                {{ adjust_form.operation(class="form-control") }}
+            </div>
+            <div class="form-group">
+                {{ adjust_form.amount.label }}
+                {{ adjust_form.amount(class="form-control") }}
+            </div>
+            <div class="form-group">
+                {{ adjust_form.description.label }}
+                {{ adjust_form.description(class="form-control") }}
+            </div>
+            <button type="submit" class="btn">Adjust Savings</button>
+        </form>
     </div>
     
-    <!-- Set Savings Balance Form -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h4 class="mb-0">Set Savings Balance</h4>
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('update_savings') }}">
-                {{ savings_form.hidden_tag() }}
-                <div class="row">
-                    <div class="col-md-8">
-                        <div class="form-group">
-                            {{ savings_form.savings.label(class="form-control-label") }}
-                            <small class="form-text text-muted">This will set your savings to the exact amount entered</small>
-                            {{ savings_form.savings(class="form-control") }}
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label class="form-control-label">&nbsp;</label>
-                            <div class="d-grid">
-                                {{ savings_form.submit(class="btn btn-outline-secondary") }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </form>
-        </div>
+    <div class="card">
+        <h3>Set Savings Balance</h3>
+        <form method="POST" action="{{ url_for('update_savings') }}">
+            {{ savings_form.hidden_tag() }}
+            <div class="form-group">
+                {{ savings_form.savings.label }}
+                {{ savings_form.savings(class="form-control") }}
+            </div>
+            {{ savings_form.submit(class="btn") }}
+        </form>
     </div>
     
-    <!-- Quick Actions -->
-    <div class="mt-4">
-        <a href="{{ url_for('goals') }}" class="btn btn-primary">View My Goals</a>
-        <a href="{{ url_for('new_goal') }}" class="btn btn-success">Create New Goal</a>
-        <a href="{{ url_for('groups') }}" class="btn btn-info">View Groups</a>
+    <div class="card">
+        <h3>Quick Actions</h3>
+        <p>
+            <a href="{{ url_for('goals') }}" class="btn">View Goals</a>
+            <a href="{{ url_for('new_goal') }}" class="btn">Create Goal</a>
+            <a href="{{ url_for('groups') }}" class="btn">View Groups</a>
+        </p>
     </div>
-</div>
 {% endblock %}
