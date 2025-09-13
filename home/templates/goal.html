@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block content %}
     <article class="media content-section {% if goal.status == 'completed' %}border-success bg-light{% endif %}">
-        <img class="rounded-circle article-img" src="{{ url_for('static', filename='profile_pics/' + goal.owner.image_file) }}">
+        <img class="profile-img-small" src="{{ url_for('static', filename='profile_pics/' + goal.owner.image_file) }}">
         <div class="media-body">
             <div class="article-metadata">
                 <a class="mr-2" href="{{ url_for('user_goals', username=goal.owner.username)}}">{{ goal.owner.username }}</a>

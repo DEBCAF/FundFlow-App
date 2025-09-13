@@ -1,6 +1,6 @@
 from flask import render_template, url_for, flash, redirect, request, abort, session
 from home import app, db, bcrypt, mail
-from home.db_models import User, Goal, Group, GroupMember, GroupGoal, GroupTransaction, GroupJoinRequest
+from home.db_models import User, Goal, Group, GroupMember, GroupGoal, GroupTransaction, GroupJoinRequest, UserPreference, GroupPreference
 from home.forms import RegistrationForm, LoginForm, UpdateAccountForm, GoalForm, RequestResetForm, ResetPasswordForm, ChangePasswordForm, UpdateSavingsForm, CreateGroupForm, JoinGroupForm, GroupGoalForm, GroupTransactionForm, AdjustSavingsForm, UserPreferencesForm, GroupPreferencesForm
 from PIL import Image 
 import secrets
@@ -12,7 +12,6 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, BooleanField, SelectField, IntegerField, TextAreaField, FloatField
 from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError, NumberRange, Optional
 from flask_login import current_user
-from home.db_models import UserPreference, GroupPreference
 
 @app.route("/home")
 @app.route("/")
@@ -58,22 +57,16 @@ def logout():
     logout_user()
     return redirect(url_for('home'))
 
-def save_picture(form_picture):
-    random_hex = secrets.token_hex(8)
-    _,f_ext = os.path.splitext(form_picture.filename)
-    picture_fn = random_hex + f_ext
-    picture_path = os.path.join(app.root_path, 'static/profile_pics', picture_fn)
-    output_size = (125, 125)
-    i = Image.open(form_picture)
-    i.thumbnail(output_size)
-    i.save(picture_path)
-    return picture_fn
-
-@app.route("/account", methods=['GET', 'POST'])
+@app.route("/account")
 @login_required
 def account():
+    image_file = url_for('static', filename='profile_pics/'+current_user.image_file)
+    return render_template("account.html", title="Account", image_file=image_file)
+
+@app.route("/account/edit", methods=['GET', 'POST'])
+@login_required
+def update_account():
     form = UpdateAccountForm()
-    
     if form.validate_on_submit():
         if form.picture.data:
             picture_file = save_picture(form.picture.data)
@@ -88,8 +81,7 @@ def account():
         form.username.data = current_user.username
         form.email.data = current_user.email
     
-    image_file = url_for('static', filename='profile_pics/'+current_user.image_file)
-    return render_template("account.html", title="Account", image_file=image_file, form=form)
+    return render_template("update_account.html", title="Update Account", form=form)
 
 @app.route("/change_password", methods=['GET', 'POST'])
 @login_required
@@ -112,11 +104,9 @@ def update_savings():
     form = UpdateSavingsForm()
     if form.validate_on_submit():
         new_savings = form.savings.data
-    
         if new_savings < 0:
             flash('Savings cannot be negative!', 'danger')
             return redirect(url_for('dashboard'))
-        
         try:
             current_user.savings = new_savings
             db.session.commit()
@@ -127,7 +117,6 @@ def update_savings():
         except Exception as e:
             db.session.rollback()
             flash('An error occurred while updating savings.', 'danger')
-        
         return redirect(url_for('dashboard'))
     else:
         for field, errors in form.errors.items():
@@ -142,7 +131,6 @@ def adjust_savings():
     if form.validate_on_submit():
         amount = form.amount.data
         operation = form.operation.data
-        
         if operation == 'subtract' and current_user.savings < amount:
             flash('Insufficient funds to subtract this amount!', 'danger')
             return redirect(url_for('dashboard'))
@@ -151,7 +139,7 @@ def adjust_savings():
             if operation == 'add':
                 current_user.savings += amount
                 flash(f'Added ${amount:.2f} to your savings!', 'success')
-            else:  # subtract
+            else:  
                 current_user.savings -= amount
                 flash(f'Subtracted ${amount:.2f} from your savings!', 'success')
             
@@ -271,14 +259,6 @@ def delete_goal(goal_id):
     flash('Your goal has been deleted!', 'success')
     return redirect(url_for('home'))
 
-@app.route("/user/<string:username>")
-@login_required
-def user_goals(username):
-    page = request.args.get('page', 1, type=int)
-    user = User.query.filter_by(username=username).first_or_404()
-    goals = Goal.query.filter_by(user_id=user.id).order_by(Goal.date_time.desc()).paginate(page=page, per_page=2)
-    return render_template("user_goals.html", goals=goals, user=user)
-
 @app.route("/dashboard")
 @login_required
 def dashboard():
@@ -331,11 +311,32 @@ def reset_token(token):
         return redirect(url_for('login'))
     return render_template('reset_token.html', title='Reset Password', form=form)
 
+def save_picture(form_picture):
+    random_hex = secrets.token_hex(8)
+    _,f_ext = os.path.splitext(form_picture.filename)
+    picture_fn = random_hex + f_ext
+    picture_path = os.path.join(app.root_path, 'static/profile_pics', picture_fn)
+    output_size = (125, 125)
+    i = Image.open(form_picture)
+    i.thumbnail(output_size)
+    i.save(picture_path)
+    return picture_fn
 
-
-
-
-
+@app.route("/preferences", methods=['GET', 'POST'])
+@login_required
+def user_preferences():
+    form = UserPreferencesForm()
+    if request.method == 'GET':
+        form.theme.data = session.get('theme', 'light')
+        form.notifications.data = session.get('notifications', True)
+    
+    if form.validate_on_submit():
+        session['theme'] = form.theme.data
+        session['notifications'] = form.notifications.data
+        flash('Your preferences have been updated!', 'success')
+        return redirect(url_for('user_preferences'))
+    
+    return render_template("user_preferences.html", title="User Preferences", form=form)
 
 
 
@@ -426,12 +427,6 @@ def join_group():
             flash('You already have a pending join request for this group.', 'info')
             return redirect(url_for('join_group'))
         
-        was_previous_member = GroupMember.query.filter_by(
-            group_id=group.id,
-            user_id=current_user.id,
-            is_active=False
-        ).first()
-        
         join_request = GroupJoinRequest(
             group_id=group.id,
             user_id=current_user.id,
@@ -440,10 +435,7 @@ def join_group():
         db.session.add(join_request)
         db.session.commit()
         
-        if was_previous_member:
-            flash('Rejoin request sent! Waiting for admin approval.', 'success')
-        else:
-            flash('Join request sent! Waiting for admin approval.', 'success')
+        flash('Join request sent! Waiting for admin approval.', 'success')
         
         return redirect(url_for('groups'))
     
@@ -596,7 +588,6 @@ def approve_group_goal(group_id, goal_id):
 @app.route("/groups/<int:group_id>/goals/<int:goal_id>/deny", methods=['POST'])
 @login_required
 def deny_group_goal(group_id, goal_id):
-    group = Group.query.get_or_404(group_id)
     member = GroupMember.query.filter_by(
         group_id=group_id, 
         user_id=current_user.id
@@ -695,7 +686,6 @@ def approve_group_transaction(group_id, transaction_id):
 @app.route("/groups/<int:group_id>/transactions/<int:transaction_id>/deny", methods=['POST'])
 @login_required
 def deny_group_transaction(group_id, transaction_id):
-    group = Group.query.get_or_404(group_id)
     member = GroupMember.query.filter_by(
         group_id=group_id, 
         user_id=current_user.id
@@ -822,7 +812,6 @@ def demote_member(group_id, member_id):
 @app.route("/groups/<int:group_id>/members/<int:member_id>/remove", methods=['POST'])
 @login_required
 def remove_member(group_id, member_id):
-    group = Group.query.get_or_404(group_id)
     admin_member = GroupMember.query.filter_by(
         group_id=group_id, 
         user_id=current_user.id
@@ -868,7 +857,6 @@ def group_join_requests(group_id):
 @app.route("/groups/<int:group_id>/join-requests/<int:request_id>/approve", methods=['POST'])
 @login_required
 def approve_join_request(group_id, request_id):
-    group = Group.query.get_or_404(group_id)
     member = GroupMember.query.filter_by(
         group_id=group_id, 
         user_id=current_user.id
@@ -918,7 +906,6 @@ def approve_join_request(group_id, request_id):
 @app.route("/groups/<int:group_id>/join-requests/<int:request_id>/deny", methods=['POST'])
 @login_required
 def deny_join_request(group_id, request_id):
-    group = Group.query.get_or_404(group_id)
     member = GroupMember.query.filter_by(
         group_id=group_id, 
         user_id=current_user.id
@@ -938,22 +925,6 @@ def deny_join_request(group_id, request_id):
     
     flash(f'{join_request.user.username}\'s join request has been denied.', 'info')
     return redirect(url_for('group_join_requests', group_id=group_id))
-
-@app.route("/preferences", methods=['GET', 'POST'])
-@login_required
-def user_preferences():
-    form = UserPreferencesForm()
-    if request.method == 'GET':
-        form.theme.data = session.get('theme', 'light')
-        form.notifications.data = session.get('notifications', True)
-    
-    if form.validate_on_submit():
-        session['theme'] = form.theme.data
-        session['notifications'] = form.notifications.data
-        flash('Your preferences have been updated!', 'success')
-        return redirect(url_for('user_preferences'))
-    
-    return render_template("user_preferences.html", title="User Preferences", form=form)
 
 @app.route("/groups/<int:group_id>/preferences", methods=['GET', 'POST'])
 @login_required

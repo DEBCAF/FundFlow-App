@@ -6,7 +6,7 @@
     <title>{% if title %}FundFlow - {{ title }}{% else %}FundFlow{% endif %}</title>
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='main.css') }}">
 </head>
-<body>
+<body class="{{ session.get('theme', 'light') }}-theme">
     <div class="container">
         <nav class="navbar">
             <a href="/">FundFlow</a>

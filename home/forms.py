@@ -109,15 +109,6 @@ class UpdateGoalForm(FlaskForm):
     ], validators=[Optional()])
     submit = SubmitField('Update Goal')
 
-# Changing savings balance manually (may add function to just press add or subtract)
-class SavingsForm(FlaskForm):
-    amount = FloatField('Amount ($)', validators=[DataRequired()])
-    submit = SubmitField('Add Savings')
-
-    def validate_amount(self, amount):
-        if amount.data <= 0:
-            raise ValidationError('Amount must be greater than 0.')
-
 class RequestResetForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
     submit = SubmitField('Request Password Reset')
@@ -138,6 +129,14 @@ class ChangePasswordForm(FlaskForm):
     confirm_new_password = PasswordField('Confirm New Password', validators=[DataRequired(), EqualTo('new_password')])
     submit = SubmitField('Change Password')
 
+class UserPreferencesForm(FlaskForm):
+    theme = SelectField('Theme', choices=[
+        ('light', 'Light Mode'),
+        ('dark', 'Dark Mode')
+    ], validators=[DataRequired()])
+    notifications = BooleanField('Enable Notifications')
+    submit = SubmitField('Save Preferences')
+
 class CreateGroupForm(FlaskForm):
     name = StringField('Group Name', validators=[DataRequired(), Length(min=2, max=100)])
     description = TextAreaField('Description', validators=[Optional()])
@@ -150,6 +149,11 @@ class CreateGroupForm(FlaskForm):
     ], validators=[DataRequired()])
     is_open = BooleanField('Open Group (Anyone can join with Group ID)')
     submit = SubmitField('Create Group')
+
+class JoinGroupForm(FlaskForm):
+    group_id = IntegerField('Group ID', validators=[DataRequired()])
+    message = TextAreaField('Message (Optional)', validators=[Optional()])
+    submit = SubmitField('Join Group')
 
 class GroupGoalForm(FlaskForm):
     title = StringField('Goal Title', validators=[DataRequired(), Length(min=2, max=100)])
@@ -178,19 +182,6 @@ class GroupTransactionForm(FlaskForm):
     ])
     description = TextAreaField('Description', validators=[DataRequired()])
     submit = SubmitField('Submit Transaction')
-
-class JoinGroupForm(FlaskForm):
-    group_id = IntegerField('Group ID', validators=[DataRequired()])
-    message = TextAreaField('Message (Optional)', validators=[Optional()])
-    submit = SubmitField('Join Group')
-
-class UserPreferencesForm(FlaskForm):
-    theme = SelectField('Theme', choices=[
-        ('light', 'Light Mode'),
-        ('dark', 'Dark Mode')
-    ], validators=[DataRequired()])
-    notifications = BooleanField('Enable Notifications')
-    submit = SubmitField('Save Preferences')
 
 class GroupPreferencesForm(FlaskForm):
     default_graph_type = SelectField('Default Graph Type', choices=[

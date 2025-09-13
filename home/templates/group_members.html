@@ -34,14 +34,11 @@
         </div>
         <div class="card-body">
             {% for member_item in group.members %}
-                {% if member_item.role == 'member' %}
+                {% if member_item.role == 'member' and member_item.is_active %}
                     <div class="d-flex justify-content-between align-items-center p-2 border rounded mb-2">
                         <div>
                             <strong>{{ member_item.user.username }}</strong>
                             <small class="text-muted">Joined {{ member_item.joined_at.strftime('%Y-%m-%d') }}</small>
-                            {% if not member_item.is_active %}
-                                <span class="badge bg-secondary">Inactive</span>
-                            {% endif %}
                         </div>
                         {% if current_user_member.role == 'admin' %}
                             <div>

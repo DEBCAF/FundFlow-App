@@ -2,6 +2,57 @@ body {
     font-family: Arial, sans-serif;
     margin: 20px;
     background-color: #f5f5f5;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Light Theme (default) */
+body.light-theme {
+    background-color: #f5f5f5;
+    color: #000000;
+}
+
+body.light-theme .content {
+    background-color: white;
+    border: 1px solid #ddd;
+}
+
+body.light-theme .navbar {
+    background-color: #333;
+    color: white;
+}
+
+body.light-theme .form-control {
+    background-color: white;
+    border: 1px solid #ccc;
+    color: #000000;
+}
+
+/* Dark Theme */
+body.dark-theme {
+    background-color: #1a1a1a;
+    color: #ffffff;
+}
+
+body.dark-theme .content {
+    background-color: #2d2d2d;
+    border: 1px solid #555;
+}
+
+body.dark-theme .navbar {
+    background-color: #1a1a1a;
+    color: #ffffff;
+}
+
+body.dark-theme .form-control {
+    background-color: #3d3d3d;
+    border: 1px solid #555;
+    color: #ffffff;
+}
+
+body.dark-theme .card {
+    background-color: #2d2d2d;
+    border: 1px solid #555;
+    color: #ffffff;
 }
 
 .container {
@@ -26,6 +77,7 @@ body {
     background-color: white;
     padding: 20px;
     border: 1px solid #ddd;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .form-group {
@@ -79,6 +131,14 @@ body {
     width: 64px;
     margin-right: 15px;
     border-radius: 50%;
+}
+
+.profile-img-small {
+    height: 32px;
+    width: 32px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
 }
 
 .media {

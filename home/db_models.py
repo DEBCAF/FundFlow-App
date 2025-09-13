@@ -40,14 +40,6 @@ class User(db.Model, UserMixin):
             return None
         return User.query.get(user_id)
 
-# Changing your savings balance manually 
-class Savings(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    amount = db.Column(db.Float, nullable=False, default=0.0)
-    date_time = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
-# Changing your savings balance by using that towards goals 
 class Expense(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     amount = db.Column(db.Float, nullable=False, default=0.0)
@@ -81,9 +73,8 @@ class Group(db.Model):
     currency = db.Column(db.String(10), nullable=False, default='USD')
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     is_open = db.Column(db.Boolean, nullable=False, default=True)
-    balance = db.Column(db.Float, nullable=False, default=0.0)  # Add this field
+    balance = db.Column(db.Float, nullable=False, default=0.0)  
     
-    # Relationships
     members = db.relationship('GroupMember', backref='group', lazy=True, cascade='all, delete-orphan')
     goals = db.relationship('GroupGoal', backref='group', lazy=True, cascade='all, delete-orphan')
     transactions = db.relationship('GroupTransaction', backref='group', lazy=True, cascade='all, delete-orphan')
@@ -111,11 +102,10 @@ class GroupMember(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default='member')  # 'admin' or 'member'
+    role = db.Column(db.String(20), nullable=False, default='member')  
     joined_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     
-    # Ensure unique user per group
     __table_args__ = (
         db.UniqueConstraint('group_id', 'user_id', name='unique_group_user'),
     )
@@ -135,13 +125,12 @@ class GroupGoal(db.Model):
     target_amount = db.Column(db.Float, nullable=False)
     deadline = db.Column(db.DateTime, nullable=True)
     category = db.Column(db.String(50), nullable=True)
-    status = db.Column(db.String(20), nullable=False, default='proposed')  # 'proposed', 'approved', 'denied', 'active', 'completed'
+    status = db.Column(db.String(20), nullable=False, default='proposed')  
     proposer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     approved_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     approved_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
-    # Relationships
     proposer = db.relationship('User', foreign_keys=[proposer_id], backref='proposed_goals')
     approved_by = db.relationship('User', foreign_keys=[approved_by_id], backref='approved_goals')
     
@@ -159,11 +148,10 @@ class GroupTransaction(db.Model):
     amount = db.Column(db.Float, nullable=False)
     description = db.Column(db.Text, nullable=True)
     occurred_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    status = db.Column(db.String(20), nullable=False, default='pending')  # 'pending', 'approved', 'denied'
+    status = db.Column(db.String(20), nullable=False, default='pending')  
     approved_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     approved_at = db.Column(db.DateTime, nullable=True)
     
-    # Relationships
     user = db.relationship('User', foreign_keys=[user_id], backref='group_transactions')
     approved_by = db.relationship('User', foreign_keys=[approved_by_id], backref='approved_transactions')
     
@@ -194,17 +182,15 @@ class GroupJoinRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    status = db.Column(db.String(20), nullable=False, default='pending')  # 'pending', 'approved', 'denied'
-    message = db.Column(db.Text, nullable=True)  # Optional message from user
+    status = db.Column(db.String(20), nullable=False, default='pending')  
+    message = db.Column(db.Text, nullable=True)  
     requested_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     responded_at = db.Column(db.DateTime, nullable=True)
     responded_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     
-    # Relationships
     user = db.relationship('User', foreign_keys=[user_id], backref='join_requests')
     responded_by = db.relationship('User', foreign_keys=[responded_by_id], backref='responded_requests')
     
-    # Ensure unique pending request per user per group
     __table_args__ = (
         db.UniqueConstraint('group_id', 'user_id', name='unique_pending_join_request'),
     )
@@ -215,14 +201,13 @@ class GroupJoinRequest(db.Model):
 class UserPreference(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
-    theme = db.Column(db.String(20), nullable=False, default='light')  # 'light' or 'dark'
+    theme = db.Column(db.String(20), nullable=False, default='light')  
     notifications_enabled = db.Column(db.Boolean, nullable=False, default=True)
     email_notifications = db.Column(db.Boolean, nullable=False, default=True)
     default_currency = db.Column(db.String(10), nullable=False, default='USD')
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationship
     user = db.relationship('User', backref='preferences')
     
     def __repr__(self):
@@ -238,7 +223,6 @@ class GroupPreference(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationship
     group = db.relationship('Group', backref='preferences')
     
     def __repr__(self):
