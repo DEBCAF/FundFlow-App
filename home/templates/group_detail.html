@@ -145,7 +145,7 @@
         {% if pending_join_requests %}
             <div class="card mb-4 border-info">
                 <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">📥 Pending Join Requests ({{ pending_join_requests|length }})</h5>
+                    <h5 class="mb-0">Pending Join Requests ({{ pending_join_requests|length }})</h5>
                 </div>
                 <div class="card-body">
                     {% for request in pending_join_requests %}
@@ -174,29 +174,53 @@
             </div>
         {% endif %}
     {% endif %}
-    
     <div class="card mb-4">
         <div class="card-header">
-            <h5 class="mb-0">Group Goals</h5>
+            <h1 class="mb-0">Recent Outstanding Group Goals</h1>
         </div>
+        <form method="GET" action="{{ url_for('view_group_goals', group_id=group.id) }}" style="display: inline;">
+            <button type="submit" class="btn btn-sm">View All Goals</button>
+        </form>
         <div class="card-body">
-            {% if goals %}
-                {% for goal in goals %}
+            {% if recent_goals %}
+                {% for goal in recent_goals %}
                     <div class="border rounded p-3 mb-3 {% if goal.status == 'completed' %}bg-success bg-opacity-10{% elif goal.status == 'denied' %}bg-danger bg-opacity-10{% endif %}">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <h6 class="mb-1">{{ goal.title }}</h6>
+                                <h2 class="mb-1">{{ goal.title }}</h2>
                                 <p class="mb-2">{{ goal.description }}</p>
                                 <div class="small text-muted">
                                     Target: ${{ '%.2f'|format(goal.target_amount) }}
                                     {% if goal.deadline %} | Deadline: {{ goal.deadline.strftime('%Y-%m-%d') }}{% endif %}
-                                    {% if goal.category %} | Category: {{ goal.category.title() }}{% endif %}
                                 </div>
+                                {% if group_analytics and group_analytics.get(goal.id) and goal.status not in ['approved','completed','denied'] %}
+                                    {% set analytics = group_analytics[goal.id] %}
+                                    <div class="mt-2 mb-2 p-2 bg-light rounded">
+                                        <small class="text-muted fw-bold">Analytics:</small>
+                                        <div class="row mt-1">
+                                            <div class="col-6">
+                                                <small class="d-block">Remaining: ${{ '%.2f'|format(goal.target_amount - group.balance) if group.balance < goal.target_amount else 'Sufficient Funds' }}</small>
+                                                {% if analytics.rate_per_day %}
+                                                    <small class="d-block">Daily Rate: ${{ '%.2f'|format(analytics.rate_per_day) }}</small>
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-6">
+                                                {% if analytics.rate_per_week %}
+                                                    <small class="d-block">Weekly Rate: ${{ '%.2f'|format(analytics.rate_per_week) }}</small>
+                                                {% endif %}
+                                                {% if analytics.eta_ts %}
+                                                    <small class="d-block text-success">ETA: {{ analytics.eta_ts|timestamp_to_date }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% if not analytics.rate_per_day %}
+                                            <small class="text-warning">Insufficient transaction data for analysis</small>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
                             </div>
                             <div class="text-end">
-                                <span class="badge {% if goal.status == 'proposed' %}bg-warning{% elif goal.status == 'approved' %}bg-success{% elif goal.status == 'denied' %}bg-danger{% elif goal.status == 'active' %}bg-primary{% elif goal.status == 'completed' %}bg-success{% endif %}">
-                                    {{ goal.status.title() }}
-                                </span>
+                                <span class="badge bg-primary mb-2">{{ goal.status.title() }}</span>
                                 <div class="small text-muted mt-1">
                                     {% if goal.status == 'proposed' %}
                                         Proposed by {{ goal.proposer.username }}
@@ -209,11 +233,11 @@
                     </div>
                 {% endfor %}
             {% else %}
-                <p class="text-muted text-center">No goals yet. Propose the first one!</p>
+                <p class="text-muted text-center">No recent goals yet. Propose the first one!</p>
             {% endif %}
         </div>
     </div>
-    
+
     <div class="card mb-4">
         <div class="card-header">
             <h5 class="mb-0">Recent Transactions</h5>

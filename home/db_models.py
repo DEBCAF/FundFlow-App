@@ -1,3 +1,4 @@
+from fsspec.registry import default
 from sqlalchemy import CheckConstraint
 from home import db, login_manager, app
 from datetime import datetime
@@ -40,13 +41,16 @@ class User(db.Model, UserMixin):
             return None
         return User.query.get(user_id)
 
-class Expense(db.Model):
+class SavingChanges(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    amount = db.Column(db.Float, nullable=False, default=0.0)
+    amount = db.Column(db.Float, nullable=False)
     date_time = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    description = db.Column(db.Text, nullable=False)
-    category = db.Column(db.String(50), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    user = db.relationship('User', backref='saving_changes')
+    
+    def __repr__(self):
+        return f"SavingChange('{self.user.username}', '${self.amount}')"
 
 class Goal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -57,7 +61,7 @@ class Goal(db.Model):
     target_amount = db.Column(db.Float, nullable=False)
     current_amount = db.Column(db.Float, nullable=False, default=0.0)
     deadline = db.Column(db.DateTime, nullable=True)
-    category = db.Column(db.String(50), nullable=True)
+    category = db.Column(db.String(50), nullable=True, default='savings')
     status = db.Column(db.String(20), nullable=False, default='active')
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     

@@ -1,7 +1,8 @@
 from flask import render_template, url_for, flash, redirect, request, abort, session
 from home import app, db, bcrypt, mail
-from home.db_models import User, Goal, Group, GroupMember, GroupGoal, GroupTransaction, GroupJoinRequest, UserPreference, GroupPreference
-from home.forms import RegistrationForm, LoginForm, UpdateAccountForm, GoalForm, RequestResetForm, ResetPasswordForm, ChangePasswordForm, UpdateSavingsForm, CreateGroupForm, JoinGroupForm, GroupGoalForm, GroupTransactionForm, AdjustSavingsForm, UserPreferencesForm, GroupPreferencesForm
+from home.db_models import User, SavingChanges, Goal, Group, GroupMember, GroupGoal, GroupTransaction, GroupJoinRequest, UserPreference, GroupPreference
+from home.forms import RegistrationForm, LoginForm, UpdateAccountForm, UpdateGoalForm, GoalForm, RequestResetForm, ResetPasswordForm, ChangePasswordForm, UpdateSavingsForm, CreateGroupForm, JoinGroupForm, GroupGoalForm, GroupTransactionForm, AdjustSavingsForm, UserPreferencesForm, GroupPreferencesForm
+from home.analysis import analyse_group, rate_per_day, estimate_eta, rate_breakdown, required_rate, analyse_user, user_transactions_as_movements, group_transactions_as_movements
 from PIL import Image 
 import secrets
 import os
@@ -11,16 +12,20 @@ from datetime import datetime
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, BooleanField, SelectField, IntegerField, TextAreaField, FloatField
 from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError, NumberRange, Optional
-from flask_login import current_user
+
+@app.template_filter('timestamp_to_date')
+def timestamp_to_date(timestamp):
+    if timestamp is None:
+        return "N/A"
+    try:
+        return datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
+    except:
+        return "Invalid date"
 
 @app.route("/home")
 @app.route("/")
 def home():
     return render_template("home.html", title="FundFlow")
-
-@app.route("/about")
-def about():
-    return render_template("about.html")
 
 @app.route("/register", methods=['GET', 'POST'])
 def register():
@@ -108,6 +113,12 @@ def update_savings():
             flash('Savings cannot be negative!', 'danger')
             return redirect(url_for('dashboard'))
         try:
+            current_savings = current_user.savings
+            saving_change = SavingChanges(
+                amount=new_savings - current_savings,
+                user_id=current_user.id
+            )
+            db.session.add(saving_change)
             current_user.savings = new_savings
             db.session.commit()
             flash('Your savings balance has been updated!', 'success')
@@ -131,6 +142,7 @@ def adjust_savings():
     if form.validate_on_submit():
         amount = form.amount.data
         operation = form.operation.data
+        
         if operation == 'subtract' and current_user.savings < amount:
             flash('Insufficient funds to subtract this amount!', 'danger')
             return redirect(url_for('dashboard'))
@@ -138,9 +150,19 @@ def adjust_savings():
         try:
             if operation == 'add':
                 current_user.savings += amount
+                saving_change = SavingChanges(
+                    amount=amount,
+                    user_id=current_user.id
+                )
+                db.session.add(saving_change)
                 flash(f'Added ${amount:.2f} to your savings!', 'success')
             else:  
                 current_user.savings -= amount
+                saving_change = SavingChanges(
+                    amount=-amount,
+                    user_id=current_user.id
+                )
+                db.session.add(saving_change)
                 flash(f'Subtracted ${amount:.2f} from your savings!', 'success')
             
             db.session.commit()
@@ -166,13 +188,15 @@ def goals():
     if status_filter == 'completed':
         goals = Goal.query.filter_by(user_id=current_user.id, status='completed')\
             .order_by(Goal.date_time.desc()).paginate(page=page, per_page=5)
+        analytics = analyse_user(current_user, goals, current_user.savings or 0.0)
         active_tab = 'completed'
     else:
         goals = Goal.query.filter_by(user_id=current_user.id, status='active')\
             .order_by(Goal.date_time.desc()).paginate(page=page, per_page=5)
+        analytics = analyse_user(current_user, goals, current_user.savings or 0.0)
         active_tab = 'incomplete'
     
-    return render_template("goals.html", title="My Goals", goals=goals, active_tab=active_tab)
+    return render_template("goals.html", title="My Goals", goals=goals, active_tab=active_tab, analytics=analytics)
 
 @app.route("/goal/new", methods=['GET', 'POST'])
 @login_required
@@ -204,7 +228,8 @@ def new_goal():
 @login_required
 def goal(goal_id):
     goal = Goal.query.get_or_404(goal_id)
-    return render_template('goal.html', title=goal.title, goal=goal)
+    analytics = analyse_user(current_user, [goal], current_user.savings or 0.0)
+    return render_template('goal.html', title=goal.title, goal=goal, analytics=analytics)
 
 @app.route("/goal/<int:goal_id>/update", methods=['GET', 'POST'])
 @login_required
@@ -212,7 +237,7 @@ def update_goal(goal_id):
     goal = Goal.query.get_or_404(goal_id)
     if goal.user_id != current_user.id:
         abort(403)
-    form = GoalForm()
+    form = UpdateGoalForm()
     if form.validate_on_submit():
         if form.target_amount.data <= 0:
             flash('Target amount must be greater than 0!', 'danger')
@@ -246,7 +271,7 @@ def complete_goal(goal_id):
     goal.status = 'completed'
     db.session.commit()
     flash('Your goal has been completed!', 'success')
-    return redirect(url_for('home'))
+    return redirect(url_for('goals'))
 
 @app.route("/goal/<int:goal_id>/delete", methods=['POST'])
 @login_required
@@ -257,7 +282,7 @@ def delete_goal(goal_id):
     db.session.delete(goal)
     db.session.commit()
     flash('Your goal has been deleted!', 'success')
-    return redirect(url_for('home'))
+    return redirect(url_for('goals'))
 
 @app.route("/dashboard")
 @login_required
@@ -268,8 +293,32 @@ def dashboard():
     if request.method == 'GET':
         savings_form.savings.data = current_user.savings or 0.0
     
+    goal_analytics = get_user_goal_analytics(current_user.id)
+
+    tx_movements = user_transactions_as_movements(current_user)
+    overall_rate = rate_per_day(tx_movements)
+    
+    goals = Goal.query.filter_by(user_id=current_user.id, status='active').all()
+    total_remaining = sum(max(0.0, float(g.target_amount) - float(current_user.savings or 0.0)) for g in goals)
+    eta = estimate_eta(total_remaining, overall_rate)
+    account_analytics = {
+        'rate_per_day': overall_rate,
+        'eta_ts': None if eta is None else int(datetime.combine(eta, datetime.min.time()).timestamp())
+    }
+
     return render_template("dashboard.html", title="Dashboard", 
-                         savings_form=savings_form, adjust_form=adjust_form)
+                         savings_form=savings_form, adjust_form=adjust_form,
+                         goal_analytics=goal_analytics, goals=goals,
+                         account_analytics=account_analytics)
+
+def get_user_goal_analytics(user_id: int) -> dict:
+    goals = Goal.query.filter_by(user_id=user_id, status='active').all()
+    user = User.query.get(user_id)
+    
+    analytics = {}
+    analytics = analyse_user(user, goals, user.savings or 0.0)
+    
+    return analytics
 
 def send_reset_email(user):
     token = user.get_reset_token()
@@ -338,12 +387,9 @@ def user_preferences():
     
     return render_template("user_preferences.html", title="User Preferences", form=form)
 
-
-
-
-
-
-
+"""
+Group related below
+"""
 
 @app.route("/groups")
 @login_required
@@ -453,7 +499,7 @@ def group_detail(group_id):
     if not member or not member.is_active:
         abort(403)
     
-    goals = GroupGoal.query.filter_by(group_id=group_id).order_by(GroupGoal.created_at.desc()).all()
+    recent_goals = GroupGoal.query.filter_by(group_id=group_id, status='proposed').order_by(GroupGoal.created_at.desc()).limit(5).all()
     
     transactions = GroupTransaction.query.filter_by(group_id=group_id).order_by(GroupTransaction.occurred_at.desc()).limit(10).all()
     
@@ -469,10 +515,25 @@ def group_detail(group_id):
             status='pending'
         ).all()
     
+    group_analytics = analyse_group(group, recent_goals, group.balance)
+
+    tx_movements = group_transactions_as_movements(group.id)
+    overall_rate = rate_per_day(tx_movements)
+
+    active_goals = GroupGoal.query.filter_by(group_id=group_id, status='approved').all()
+    total_remaining = sum(max(0.0, float(g.target_amount) - float(group.balance or 0.0)) for g in active_goals)
+    eta = estimate_eta(total_remaining, overall_rate)
+    group_account_analytics = {
+        'rate_per_day': overall_rate,
+        'eta_ts': None if eta is None else int(datetime.combine(eta, datetime.min.time()).timestamp())
+    }
+
     return render_template("group_detail.html", title=group.name, 
-                         group=group, member=member, goals=goals, 
+                         group=group, member=member, recent_goals=recent_goals, 
                          transactions=transactions, pending_goals=pending_goals,
-                         pending_transactions=pending_transactions)
+                         pending_transactions=pending_transactions,
+                         group_analytics=group_analytics,
+                         group_account_analytics=group_account_analytics)
 
 @app.route("/groups/<int:group_id>/leave", methods=['POST'])
 @login_required
@@ -608,6 +669,44 @@ def deny_group_goal(group_id, goal_id):
     flash('Goal denied.', 'info')
     return redirect(url_for('group_detail', group_id=group_id))
 
+@app.route("/groups/<int:group_id>/goals", methods=['GET', 'POST'])
+@login_required
+def view_group_goals(group_id):
+    group = Group.query.get_or_404(group_id)
+    member = GroupMember.query.filter_by(
+        group_id=group_id, 
+        user_id=current_user.id
+    ).first()
+    
+    if not member or not member.is_active:
+        abort(403)
+
+    status_filter = request.args.get('status', 'proposed')
+    page = request.args.get('page', 1, type=int)
+    per_page = 8
+
+    goals = GroupGoal.query.filter_by(
+        group_id=group_id,
+        status=status_filter
+    ).order_by(GroupGoal.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+
+    active_tab = status_filter
+
+    # also provide aggregate analytics for the group page so templates can show overall rate/ETA
+    tx_movements = group_transactions_as_movements(group.id)
+    overall_rate = rate_per_day(tx_movements)
+    approved_goals = GroupGoal.query.filter_by(group_id=group_id, status='approved').all()
+    total_remaining = sum(max(0.0, float(g.target_amount) - float(group.balance or 0.0)) for g in approved_goals)
+    eta = estimate_eta(total_remaining, overall_rate)
+    group_account_analytics = {
+        'rate_per_day': overall_rate,
+        'eta_ts': None if eta is None else int(datetime.combine(eta, datetime.min.time()).timestamp())
+    }
+
+    return render_template("group_goals.html", title=f"{group.name} Goals",
+                           group=group, goals=goals, active_tab=active_tab, group_id=group_id,
+                           group_account_analytics=group_account_analytics)
+
 @app.route("/groups/<int:group_id>/transactions/new", methods=['GET', 'POST'])
 @login_required
 def new_group_transaction(group_id):
@@ -721,13 +820,27 @@ def group_analytics(group_id):
     total_balance = group.total_balance
     total_members = len([m for m in group.members if m.is_active])
     total_goals = len(group.goals)
-    active_goals = len([g for g in group.goals if g.status == 'active'])
-    completed_goals = len([g for g in group.goals if g.status == 'completed'])
+    proposed_goals = len([g for g in group.goals if g.status == 'proposed'])
+    approved_goals = len([g for g in group.goals if g.status == 'approved'])
+    denied_goals = len([g for g in group.goals if g.status == 'denied'])
     
     recent_transactions = GroupTransaction.query.filter_by(
         group_id=group_id, 
         status='approved'
     ).order_by(GroupTransaction.occurred_at.desc()).limit(30).all()
+
+    goals = GroupGoal.query.filter_by(group_id=group_id).all()
+    group_analytics = analyse_group(group, goals, group.balance)
+
+    tx_movements = group_transactions_as_movements(group.id)
+    overall_rate = rate_per_day(tx_movements)
+    approved_goals_list = [g for g in goals if g.status == 'approved']
+    total_remaining = sum(max(0.0, float(g.target_amount) - float(group.balance or 0.0)) for g in approved_goals_list)
+    eta = estimate_eta(total_remaining, overall_rate)
+    group_account_analytics = {
+        'rate_per_day': overall_rate,
+        'eta_ts': None if eta is None else int(datetime.combine(eta, datetime.min.time()).timestamp())
+    }
     
     monthly_data = {}
     for tx in recent_transactions:
@@ -743,8 +856,11 @@ def group_analytics(group_id):
     return render_template("group_analytics.html", title=f"{group.name} Analytics", 
                          group=group, member=member, total_balance=total_balance,
                          total_members=total_members, total_goals=total_goals,
-                         active_goals=active_goals, completed_goals=completed_goals,
-                         monthly_data=monthly_data)
+                         proposed_goals=proposed_goals, approved_goals=approved_goals, denied_goals=denied_goals,
+                         monthly_data=monthly_data,
+                         group_analytics=group_analytics,
+                         group_account_analytics=group_account_analytics,
+                         goals=goals)
 
 @app.route("/groups/<int:group_id>/members")
 @login_required
@@ -979,3 +1095,7 @@ def group_preferences(group_id):
     
     return render_template("group_preferences.html", title=f"{group.name} Preferences", 
                          form=form, group=group, member=member)
+
+"""
+Data analysis below 
+"""

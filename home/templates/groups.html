@@ -68,7 +68,7 @@
                                     <div class="fw-bold">{{ group.currency }} {{ '%.2f'|format(group.balance) }}</div>
                                 </div>
                             </div>
-                            <div class="d-grid gap-2">
+                            <div class="d-grid gap-2 mt-3">
                                 <a href="{{ url_for('group_detail', group_id=group.id) }}" class="btn btn-outline-primary">View Group</a>
                                 {% if group in admin_groups %}
                                     <a href="{{ url_for('group_analytics', group_id=group.id) }}" class="btn btn-outline-info">Analytics</a>

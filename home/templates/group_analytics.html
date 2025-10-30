@@ -21,23 +21,49 @@
             </div>
         </div>
         <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Proposed Goals</h5>
+                        <h3 class="text-warning">{{ proposed_goals }}</h3>
+                        <h5 class="card-title">Approved Goals</h5>
+                        <h3 class="text-success">{{ approved_goals }}</h3>
+                        <h5 class="card-title">Denied Goals</h5>
+                        <h3 class="text-danger">{{ denied_goals }}</h3>
+                    </div>
+                </div>
+        </div>
+    </div>
+    <div class="row mb-4">
+        <div class="col-md-4">
             <div class="card text-center">
                 <div class="card-body">
-                    <h5 class="card-title">Active Goals</h5>
-                    <h3 class="text-warning">{{ active_goals }}</h3>
+                    <h5 class="card-title">Current Rate</h5>
+                    <h3 class="text-primary">
+                        {% if group_account_analytics and group_account_analytics.rate_per_day is not none %}
+                            {{ '%.2f'|format(group_account_analytics.rate_per_day) }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </h3>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card text-center">
                 <div class="card-body">
-                    <h5 class="card-title">Completed Goals</h5>
-                    <h3 class="text-success">{{ completed_goals }}</h3>
+                    <h5 class="card-title">Estimated Group ETA</h5>
+                    <h4>
+                        {% if group_account_analytics and group_account_analytics.eta_ts %}
+                            {{ group_account_analytics.eta_ts|timestamp_to_date }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </h4>
                 </div>
             </div>
         </div>
     </div>
-    
+
     {% if monthly_data %}
         <div class="card mb-4">
             <div class="card-header">

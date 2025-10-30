@@ -12,7 +12,6 @@
                 <fieldset class="form-group">
                     <div class="form-group mb-3">
                         {{ form.amount.label(class="form-control-label") }}
-                        <small class="form-text text-muted">Enter positive amount for contributions</small>
                         {% if form.amount.errors %}
                             {{ form.amount(class="form-control form-control-lg is-invalid") }}
                             <div class="invalid-feedback">

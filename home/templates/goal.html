@@ -4,7 +4,7 @@
         <img class="profile-img-small" src="{{ url_for('static', filename='profile_pics/' + goal.owner.image_file) }}">
         <div class="media-body">
             <div class="article-metadata">
-                <a class="mr-2" href="{{ url_for('user_goals', username=goal.owner.username)}}">{{ goal.owner.username }}</a>
+                <span class="text-muted">Created by: {{ goal.owner.username }}</span>
                 <small class="text-muted"> {{ goal.date_time.strftime('%Y-%m-%d') }}</small>
                 {% if goal.status == 'completed' %}
                     <span class="badge bg-success ms-2">COMPLETED</span>
@@ -36,15 +36,68 @@
                     </div>
                 {% elif current_user.savings < goal.target_amount and goal.user_id == current_user.id %}
                     <div class="alert alert-warning">
-                        <h4>⚠ Insufficient Funds</h4>
-                        <p>You need ${{ '%.2f'|format(goal.target_amount - current_user.savings) }} more to complete this goal.</p>
+                        <h4>Insufficient Funds</h4>
                     </div>
                 {% endif %}
+                {% if goal.status != 'completed' %}
+                    <div class="mt-2 p-2 bg-light rounded">
+                        <div class="row mt-1">
+                            <div class="col-6">
+                                    {% set goal_analytics = analytics.get(goal.id) %}
+                                    {% if current_user.savings >= goal.target_amount %}
+                                        <div class="alert alert-success py-2">Ready to complete! You have sufficient savings.</div>
+                                    {% elif not goal_analytics %}
+                                        <div class="alert alert-secondary py-2">No analytics available for this goal yet.</div>
+                                    {% else %}
+                                        <div class="row gx-3 gy-2">
+                                            <div class="col-md-6">
+                                                <div class="card p-2 h-100">
+                                                    <div class="small text-muted">Remaining</div>
+                                                    <div class="fw-bold">${{ '%.2f'|format(goal_analytics.remaining) }}</div>
+                                                    <div class="small text-muted mt-2">Current Savings</div>
+                                                    <div>${{ '%.2f'|format(current_user.savings or 0) }}</div>
+                                                    <div class="small text-muted mt-2">Progress</div>
+                                                    <div class="text-info">{{ '%.2f'|format((goal_analytics.progress_percent) if goal.target_amount > 0 else 0) }}%</div>
+                                                    {% if goal.deadline %}
+                                                        <div class="small text-muted">Required Daily (until {{ goal.deadline.strftime('%Y-%m-%d') }})</div>
+                                                    {% else %}
+                                                        <div class="small text-muted">Required Daily (30 days default)</div>
+                                                    {% endif %}
+                                                    <div class="small text-muted">
+                                                        {% if goal_analytics.required_daily_30 %}
+                                                            ${{ '%.2f'|format(goal_analytics.required_daily_30) }}
+                                                        {% else %}
+                                                            N/A
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="small text-muted mt-2">Current Rate</div>
+                                                    <div>
+                                                        {% if goal_analytics.rate_per_day and goal_analytics.rate_per_day > 0 %}
+                                                            ${{ '%.2f'|format(goal_analytics.rate_per_day) }} / day
+                                                        {% else %}
+                                                            <span class="text-warning">Not enough data</span>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="small text-muted mt-2">ETA</div>
+                                                    <div>
+                                                        {% if goal_analytics.eta_ts %}
+                                                            {{ goal_analytics.eta_ts|timestamp_to_date }}
+                                                        {% else %}
+                                                            <span class="text-warning">Can't generate ETA</span>
+                                                        {% endif %}
+                                                    </div>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 
                 {% if goal.user_id == current_user.id %}
-                    <a class="btn btn-secondary" href="{{ url_for('update_goal', goal_id=goal.id) }}">Edit Goal</a>
+                    <a class="btn btn-sm" href="{{ url_for('update_goal', goal_id=goal.id) }}">Edit Goal</a>
                     <form method="POST" action="{{ url_for('delete_goal', goal_id=goal.id) }}" style="display: inline;">
-                        <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this goal?')">Delete Goal</button>
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this goal?')">Delete Goal</button>
                     </form>
                 {% endif %}
             </div>

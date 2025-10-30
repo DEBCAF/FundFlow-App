@@ -44,7 +44,6 @@
                     {{ form.target_amount(class="form-control form-control-lg") }}
                 {% endif %}
             </div>
-
             <div class="form-group">
                 {{ form.deadline.label(class="form-control-label") }}
                 {% if form.deadline.errors %}
@@ -56,19 +55,6 @@
                     </div>
                 {% else %}
                     {{ form.deadline(class="form-control form-control-lg") }}
-                {% endif %}
-            </div>
-            <div class="form-group">
-                {{ form.category.label(class="form-control-label") }}
-                {% if form.category.errors %}
-                    {{ form.category(class="form-control form-control-lg is-invalid") }}
-                    <div class="invalid-feedback">
-                        {% for error in form.category.errors %}
-                            <span>{{ error }}</span>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    {{ form.category(class="form-control form-control-lg") }}
                 {% endif %}
             </div>
         </fieldset>

@@ -2,19 +2,8 @@
 {% block content %}
     {% if current_user.is_authenticated %}
         <h1>Welcome back, {{ current_user.username }}</h1>
-        <p>Continue managing your financial goals.</p>
     {% else %}
         <h1>Welcome to FundFlow</h1>
-        <p>Your personal finance and goal management platform.</p>
-        
-        <h2>Features</h2>
-        <ul>
-            <li>Track your savings</li>
-            <li>Set financial goals</li>
-            <li>Create savings groups</li>
-            <li>Monitor progress</li>
-        </ul>
-        
         <p>
             <a href="{{ url_for('register') }}" class="btn">Sign Up</a>
             <a href="{{ url_for('login') }}" class="btn">Login</a>
