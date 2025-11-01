@@ -229,7 +229,13 @@ def new_goal():
 def goal(goal_id):
     goal = Goal.query.get_or_404(goal_id)
     analytics = analyse_user(current_user, [goal], current_user.savings or 0.0)
-    return render_template('goal.html', title=goal.title, goal=goal, analytics=analytics)
+    # precompute small view flags to keep template simple
+    is_ready = (current_user.savings or 0.0) >= float(goal.target_amount)
+    goal_view = {
+        'is_ready': is_ready,
+        'current_savings': float(current_user.savings or 0.0)
+    }
+    return render_template('goal.html', title=goal.title, goal=goal, analytics=analytics, goal_view=goal_view)
 
 @app.route("/goal/<int:goal_id>/update", methods=['GET', 'POST'])
 @login_required
@@ -590,6 +596,31 @@ def new_group_goal(group_id):
     return render_template("new_group_goal.html", title="Propose Group Goal", 
                          form=form, group=group)
 
+
+@app.route("/groups/<int:group_id>/goals/<int:goal_id>")
+@login_required
+def group_goal(group_id, goal_id):
+    group = Group.query.get_or_404(group_id)
+    member = GroupMember.query.filter_by(
+        group_id=group_id,
+        user_id=current_user.id
+    ).first()
+
+    if not member or not member.is_active:
+        abort(403)
+
+    goal = GroupGoal.query.get_or_404(goal_id)
+    if goal.group_id != group_id:
+        abort(404)
+
+    analytics_map = analyse_group(group, [goal], group.balance)
+    goal_analytics = analytics_map.get(goal.id, {})
+    remaining = max(0.0, float(goal.target_amount) - float(group.balance or 0.0))
+    is_ready = float(group.balance or 0.0) >= float(goal.target_amount)
+
+    return render_template('group_goal.html', title=goal.title, group=group, goal=goal,
+                           goal_analytics=goal_analytics, remaining=remaining, is_ready=is_ready)
+
 @app.route("/groups/<int:group_id>/goals/<int:goal_id>/approve", methods=['POST'])
 @login_required
 def approve_group_goal(group_id, goal_id):
@@ -692,7 +723,6 @@ def view_group_goals(group_id):
 
     active_tab = status_filter
 
-    # also provide aggregate analytics for the group page so templates can show overall rate/ETA
     tx_movements = group_transactions_as_movements(group.id)
     overall_rate = rate_per_day(tx_movements)
     approved_goals = GroupGoal.query.filter_by(group_id=group_id, status='approved').all()
@@ -703,9 +733,35 @@ def view_group_goals(group_id):
         'eta_ts': None if eta is None else int(datetime.combine(eta, datetime.min.time()).timestamp())
     }
 
+    goals_analysis = {}
+    for g in goals.items:
+        remaining = max(0.0, float(g.target_amount) - float(group.balance or 0.0))
+        is_ready = float(group.balance or 0.0) >= float(g.target_amount)
+        progress_percent = (float(group.balance or 0.0) / float(g.target_amount) * 100) if g.target_amount and g.target_amount > 0 else 0.0
+        days = 30
+        try:
+            if getattr(g, 'deadline', None):
+                dl = g.deadline
+                if isinstance(dl, datetime):
+                    dl_date = dl.date()
+                else:
+                    dl_date = dl
+                days_left = (dl_date - datetime.today().date()).days
+                days = max(1, days_left) if days_left is not None else 30
+        except Exception:
+            days = 30
+        required_daily_30 = remaining / float(days) if days > 0 else None
+        goals_analysis[g.id] = {
+            'remaining': remaining,
+            'is_ready': is_ready,
+            'progress_percent': progress_percent,
+            'required_daily_30': required_daily_30,
+        }
+
     return render_template("group_goals.html", title=f"{group.name} Goals",
                            group=group, goals=goals, active_tab=active_tab, group_id=group_id,
-                           group_account_analytics=group_account_analytics)
+                           group_account_analytics=group_account_analytics,
+                           goals_analysis=goals_analysis)
 
 @app.route("/groups/<int:group_id>/transactions/new", methods=['GET', 'POST'])
 @login_required

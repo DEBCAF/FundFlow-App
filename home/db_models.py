@@ -59,7 +59,6 @@ class Goal(db.Model):
     description = db.Column(db.Text, nullable=False)
     url = db.Column(db.String(100), nullable=True)
     target_amount = db.Column(db.Float, nullable=False)
-    current_amount = db.Column(db.Float, nullable=False, default=0.0)
     deadline = db.Column(db.DateTime, nullable=True)
     category = db.Column(db.String(50), nullable=True, default='savings')
     status = db.Column(db.String(20), nullable=False, default='active')
@@ -68,6 +67,21 @@ class Goal(db.Model):
     __table_args__ = (
         CheckConstraint('target_amount > 0', name='check_target_amount_positive'),
     )
+    
+class UserPreference(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    theme = db.Column(db.String(20), nullable=False, default='light')  
+    notifications_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    email_notifications = db.Column(db.Boolean, nullable=False, default=True)
+    default_currency = db.Column(db.String(10), nullable=False, default='USD')
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    user = db.relationship('User', backref='preferences')
+    
+    def __repr__(self):
+        return f"UserPreference('{self.user.username}', '{self.theme}')"
 
 class Group(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -202,20 +216,7 @@ class GroupJoinRequest(db.Model):
     def __repr__(self):
         return f"GroupJoinRequest('{self.user.username}', '{self.group.name}', '{self.status}')"
 
-class UserPreference(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
-    theme = db.Column(db.String(20), nullable=False, default='light')  
-    notifications_enabled = db.Column(db.Boolean, nullable=False, default=True)
-    email_notifications = db.Column(db.Boolean, nullable=False, default=True)
-    default_currency = db.Column(db.String(10), nullable=False, default='USD')
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    user = db.relationship('User', backref='preferences')
-    
-    def __repr__(self):
-        return f"UserPreference('{self.user.username}', '{self.theme}')"
+
 
 class GroupPreference(db.Model):
     id = db.Column(db.Integer, primary_key=True)

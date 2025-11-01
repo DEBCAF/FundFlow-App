@@ -32,7 +32,7 @@
                             <span class="badge bg-success ms-2">APPROVED</span>
                         {% endif %}
                     </div>
-                    <h2><a class="article-title" href="{{ url_for('goal', goal_id=goal.id) }}">{{ goal.title }}</a></h2>
+                    <h2><a class="article-title" href="{{ url_for('group_goal', group_id=group.id, goal_id=goal.id) }}">{{ goal.title }}</a></h2>
                     <p class="article-content">{{ goal.description }}</p>
                     
                     <div class="mt-2">
@@ -49,15 +49,15 @@
                     <div class="mt-2 p-2 bg-light rounded">
                         <div class="row mt-1">
                             <div class="col-6">
-                                {% if group.balance >= goal.target_amount %}
+                                {% set analysis = goals_analysis.get(goal.id) if goals_analysis is defined else None %}
+                                {% if analysis and analysis.is_ready %}
                                     <small class="d-block text-success">Ready to complete!</small>
                                 {% else %}
                                     <small class="text-muted fw-bold">Remaining:</small>
-                                    {% set remaining = goal.target_amount - group.balance %}
-                                    <small class="d-block">Remaining: {{ '%.2f'|format(goal.target_amount - group.balance) if group.balance < goal.target_amount else 'Sufficient Funds' }}</small>
+                                    <small class="d-block">Remaining: {{ '%.2f'|format(analysis.remaining) if analysis and analysis.remaining is not none and analysis.remaining > 0 else 'Sufficient Funds' }}</small>
                                     <small class="d-block">Current Savings: ${{ '%.2f'|format(group.balance or 0) }}</small>
-                                    <small class="d-block text-info">Progress: {{ '%.2f'|format((group.balance / goal.target_amount * 100) if goal.target_amount > 0 else 0) }}%</small>
-                                    <small class="d-block">Required Daily (30d): ${{ '%.2f'|format(remaining / 30) }}</small>
+                                    <small class="d-block text-info">Progress: {{ '%.2f'|format(analysis.progress_percent if analysis and analysis.progress_percent is not none else 0) }}%</small>
+                                    <small class="d-block">Required Daily (30d): {% if analysis and analysis.required_daily_30 %}${{ '%.2f'|format(analysis.required_daily_30) }}{% else %}N/A{% endif %}</small>
                                 {% endif %}
                             </div>
                         </div>

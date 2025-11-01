@@ -25,7 +25,7 @@
             </div>
             
             <div class="mt-4">
-                {% if goal.status != 'completed' and current_user.savings >= goal.target_amount and goal.user_id == current_user.id %}
+                {% if goal.status != 'completed' and goal_view.is_ready and goal.user_id == current_user.id %}
                     <form method="POST" action="{{ url_for('complete_goal', goal_id=goal.id) }}" style="display: inline;">
                         <button type="submit" class="btn btn-success btn-lg">Complete & Spend ${{ '%.2f'|format(goal.target_amount) }}</button>
                     </form>
@@ -55,7 +55,7 @@
                                                     <div class="small text-muted">Remaining</div>
                                                     <div class="fw-bold">${{ '%.2f'|format(goal_analytics.remaining) }}</div>
                                                     <div class="small text-muted mt-2">Current Savings</div>
-                                                    <div>${{ '%.2f'|format(current_user.savings or 0) }}</div>
+                                                    <div>${{ '%.2f'|format(goal_view.current_savings or 0) }}</div>
                                                     <div class="small text-muted mt-2">Progress</div>
                                                     <div class="text-info">{{ '%.2f'|format((goal_analytics.progress_percent) if goal.target_amount > 0 else 0) }}%</div>
                                                     {% if goal.deadline %}

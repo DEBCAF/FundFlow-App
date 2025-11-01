@@ -199,7 +199,7 @@
                                         <small class="text-muted fw-bold">Analytics:</small>
                                         <div class="row mt-1">
                                             <div class="col-6">
-                                                <small class="d-block">Remaining: ${{ '%.2f'|format(goal.target_amount - group.balance) if group.balance < goal.target_amount else 'Sufficient Funds' }}</small>
+                                                <small class="d-block">Remaining: ${{ '%.2f'|format(analytics.remaining) if analytics and analytics.remaining is not none and analytics.remaining > 0 else 'Sufficient Funds' }}</small>
                                                 {% if analytics.rate_per_day %}
                                                     <small class="d-block">Daily Rate: ${{ '%.2f'|format(analytics.rate_per_day) }}</small>
                                                 {% endif %}
