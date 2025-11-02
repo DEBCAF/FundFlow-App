@@ -103,17 +103,14 @@ class Group(db.Model):
     
     @property
     def admin_members(self):
-        """Get all admin members of the group"""
         return [member for member in self.members if member.role == 'admin']
     
     @property
     def regular_members(self):
-        """Get all regular members of the group"""
         return [member for member in self.members if member.role == 'member']
     
     @property
     def total_balance(self):
-        """Get balance - use direct field for now"""
         return self.balance
 
 class GroupMember(db.Model):

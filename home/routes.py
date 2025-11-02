@@ -301,8 +301,8 @@ def dashboard():
     
     goal_analytics = get_user_goal_analytics(current_user.id)
 
-    tx_movements = user_transactions_as_movements(current_user)
-    overall_rate = rate_per_day(tx_movements)
+    movements = user_transactions_as_movements(current_user)
+    overall_rate = rate_per_day(movements)
     
     goals = Goal.query.filter_by(user_id=current_user.id, status='active').all()
     total_remaining = sum(max(0.0, float(g.target_amount) - float(current_user.savings or 0.0)) for g in goals)
