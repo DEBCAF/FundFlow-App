@@ -147,7 +147,7 @@ class CreateGroupForm(FlaskForm):
         ('CAD', 'CAD (C$)'),
         ('AUD', 'AUD (A$)')
     ], validators=[DataRequired()])
-    is_open = BooleanField('Open Group (Anyone can join with Group ID)')
+    is_open = BooleanField('Open Group to Public', default=True)
     submit = SubmitField('Create Group')
 
 class JoinGroupForm(FlaskForm):

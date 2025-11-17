@@ -118,12 +118,7 @@
         {% endif %}
     {% else %}
         <div class="text-center py-5">
-            <h3>No groups yet!</h3>
-            <p class="text-muted">Create your first group or join an existing group</p>
-            <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-                <a href="{{ url_for('create_group') }}" class="btn btn-primary">Create Your First Group</a>
-                <a href="{{ url_for('join_group') }}" class="btn btn-outline-primary">Join a Group</a>
-            </div>
+            <h3>No groups yet</h3>
         </div>
     {% endif %}
 </div>

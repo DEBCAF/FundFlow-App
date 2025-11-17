@@ -507,7 +507,7 @@ def group_detail(group_id):
     
     recent_goals = GroupGoal.query.filter_by(group_id=group_id, status='proposed').order_by(GroupGoal.created_at.desc()).limit(5).all()
     
-    transactions = GroupTransaction.query.filter_by(group_id=group_id).order_by(GroupTransaction.occurred_at.desc()).limit(10).all()
+    transactions = GroupTransaction.query.filter_by(group_id=group_id).order_by(GroupTransaction.occurred_at.desc()).limit(5).all()
     
     pending_goals = []
     pending_transactions = []
